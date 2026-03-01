@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Routine Tracker — Daily Habits</title>
+  <meta name="description"
+    content="A minimal routine tracker to build better habits. Track daily completions, scores, and streaks.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#6c5ce7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <h1>🎯 Routine Tracker</h1>
+        <span class="date-display" id="dateDisplay"></span>
+      </div>
+      <div class="stats-bar">
+        <div class="stat-card">
+          <span class="stat-value" id="scoreValue">0%</span>
+          <span class="stat-label">Today's Score</span>
+        </div>
+        <div class="stat-card streak-card">
+          <span class="stat-value" id="streakValue">0</span>
+          <span class="stat-label">🔥 Day Streak</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value" id="completedCount">0/0</span>
+          <span class="stat-label">Completed</span>
+        </div>
+      </div>
+      <!-- Progress bar -->
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="cycle-indicator">
+        <span class="cycle-text">📅 Cycle Day <strong id="cycleDayNum">1</strong>/10</span>
+        <div class="cycle-dots" id="cycleDots"></div>
+      </div>
+    </header>
+
+    <!-- Radar Chart -->
+    <section class="chart-section" id="chartSection">
+      <h2 class="chart-title">Life Balance</h2>
+      <div class="chart-container">
+        <canvas id="radarChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Add Habit -->
+    <form class="add-form" id="addForm">
+      <input type="text" id="habitInput" class="habit-input" placeholder="Add a new habit…" autocomplete="off"
+        maxlength="80">
+      <select id="categorySelect" class="category-select">
+        <option value="discipline">🎯 Discipline</option>
+        <option value="health">💪 Health</option>
+        <option value="content">📝 Content</option>
+        <option value="skill">🧠 Skill</option>
+        <option value="spiritual">🧘 Spiritual</option>
+      </select>
+      <button type="submit" class="add-btn" id="addBtn">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+        </svg>
+      </button>
+    </form>
+
+    <!-- Habits List -->
+    <ul class="habit-list" id="habitList"></ul>
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <span class="empty-icon">📋</span>
+      <p>No habits yet. Add one above to get started!</p>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <button class="clear-btn" id="clearDoneBtn" title="Remove completed habits">Clear Completed</button>
+      <button class="reset-btn" id="resetDayBtn" title="Uncheck all for a new day">Reset Day</button>
+    </footer>
+  </div>
+
+  <!-- 10-Day Evaluation Modal -->
+  <div class="modal-overlay" id="feedbackOverlay">
+    <div class="modal-card" id="feedbackModal">
+      <div class="modal-header">
+        <span class="modal-icon">📊</span>
+        <h2>10-Day Evaluation</h2>
+        <p class="modal-subtitle">Here's your life balance report</p>
+      </div>
+      <div class="modal-body" id="feedbackBody"></div>
+      <button class="modal-close-btn" id="feedbackCloseBtn">Start New Cycle</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => console.log('SW registered'))
+        .catch((e) => console.log('SW registration failed', e));
+    }
+  </script>
+</body>
+
+</html>
