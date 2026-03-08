@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Routine Tracker — Daily Habits</title>
   <meta name="description"
     content="A minimal routine tracker to build better habits. Track daily completions, scores, and streaks.">
@@ -13,20 +13,79 @@
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <meta name="theme-color" content="#6c5ce7">
+  <meta name="theme-color" content="#0f0f13">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
-  <div class="app">
-    <!-- Header -->
-    <header class="header">
-      <div class="header-top">
-        <h1>🎯 Routine Tracker</h1>
-        <span class="date-display" id="dateDisplay"></span>
+  <!-- Top Bar -->
+  <header class="top-bar" id="topBar">
+    <button class="top-bar-btn hamburger-btn" id="hamburgerBtn" aria-label="Open settings">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M3 6h16M3 11h16M3 16h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+    </button>
+    <div class="top-bar-center">
+      <span class="top-bar-title">Routine Tracker</span>
+      <span class="top-bar-date" id="dateDisplay"></span>
+    </div>
+    <button class="top-bar-btn profile-btn" id="profileBtn" aria-label="Profile">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <circle cx="11" cy="8" r="4" stroke="currentColor" stroke-width="1.8" />
+        <path d="M3 20c0-4 3.5-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+    </button>
+  </header>
+
+  <!-- Settings Drawer -->
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+  <aside class="settings-drawer" id="settingsDrawer">
+    <div class="drawer-header">
+      <h2>Settings</h2>
+      <button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close settings">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </button>
+    </div>
+    <div class="drawer-body">
+      <!-- Cycle Indicator -->
+      <div class="drawer-section">
+        <h3 class="drawer-section-title">Evaluation Cycle</h3>
+        <div class="cycle-indicator">
+          <span class="cycle-text">📅 Cycle Day <strong id="cycleDayNum">1</strong>/10</span>
+          <div class="cycle-dots" id="cycleDots"></div>
+        </div>
       </div>
+      <!-- Actions -->
+      <div class="drawer-section">
+        <h3 class="drawer-section-title">Actions</h3>
+        <button class="drawer-action-btn clear-action" id="clearDoneBtn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M3 9l4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+          Clear Completed
+        </button>
+        <button class="drawer-action-btn reset-action" id="resetDayBtn">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M3 8a7 7 0 1 1 1.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          Reset Day
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="app-content" id="appContent">
+
+    <!-- Tab: Schedule -->
+    <section class="tab-panel active" id="tabSchedule" data-tab="schedule">
+      <!-- Stats Bar -->
       <div class="stats-bar">
         <div class="stat-card">
           <span class="stat-value" id="scoreValue">0%</span>
@@ -45,53 +104,146 @@
       <div class="progress-track">
         <div class="progress-fill" id="progressFill"></div>
       </div>
-      <div class="cycle-indicator">
-        <span class="cycle-text">📅 Cycle Day <strong id="cycleDayNum">1</strong>/10</span>
-        <div class="cycle-dots" id="cycleDots"></div>
-      </div>
-    </header>
-
-    <!-- Radar Chart -->
-    <section class="chart-section" id="chartSection">
-      <h2 class="chart-title">Life Balance</h2>
-      <div class="chart-container">
-        <canvas id="radarChart"></canvas>
+      <!-- Add Habit -->
+      <form class="add-form" id="addForm">
+        <input type="text" id="habitInput" class="habit-input" placeholder="Add a new habit…" autocomplete="off"
+          maxlength="80">
+        <select id="categorySelect" class="category-select">
+          <option value="discipline">🎯 Discipline</option>
+          <option value="health">💪 Health</option>
+          <option value="content">📝 Content</option>
+          <option value="skill">🧠 Skill</option>
+          <option value="spiritual">🧘 Spiritual</option>
+        </select>
+        <button type="submit" class="add-btn" id="addBtn">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </form>
+      <!-- Habits List -->
+      <ul class="habit-list" id="habitList"></ul>
+      <!-- Empty state -->
+      <div class="empty-state" id="emptyState">
+        <span class="empty-icon">📋</span>
+        <p>No habits yet. Add one above to get started!</p>
       </div>
     </section>
 
-    <!-- Add Habit -->
-    <form class="add-form" id="addForm">
-      <input type="text" id="habitInput" class="habit-input" placeholder="Add a new habit…" autocomplete="off"
-        maxlength="80">
-      <select id="categorySelect" class="category-select">
-        <option value="discipline">🎯 Discipline</option>
-        <option value="health">💪 Health</option>
-        <option value="content">📝 Content</option>
-        <option value="skill">🧠 Skill</option>
-        <option value="spiritual">🧘 Spiritual</option>
-      </select>
-      <button type="submit" class="add-btn" id="addBtn">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
-        </svg>
-      </button>
-    </form>
+    <!-- Tab: Calendar -->
+    <section class="tab-panel" id="tabCalendar" data-tab="calendar">
+      <div class="calendar-header">
+        <button class="cal-nav-btn" id="calPrev" aria-label="Previous month">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+        </button>
+        <h2 class="cal-month-title" id="calMonthTitle">March 2026</h2>
+        <button class="cal-nav-btn" id="calNext" aria-label="Next month">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M8 4l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="calendar-weekdays" id="calWeekdays">
+        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+      </div>
+      <div class="calendar-grid" id="calGrid"></div>
+      <!-- Event Input -->
+      <div class="event-input-area" id="eventInputArea" style="display:none;">
+        <div class="event-input-header">
+          <span class="event-date-label" id="eventDateLabel"></span>
+          <button class="event-close-btn" id="eventCloseBtn" aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+        <input type="text" class="event-input" id="eventInput" placeholder="Add event note…" maxlength="100">
+        <button class="event-save-btn" id="eventSaveBtn">Save</button>
+      </div>
+      <!-- Events List -->
+      <div class="events-list" id="eventsList"></div>
+    </section>
 
-    <!-- Habits List -->
-    <ul class="habit-list" id="habitList"></ul>
+    <!-- Tab: Radar -->
+    <section class="tab-panel" id="tabRadar" data-tab="radar">
+      <div class="chart-section">
+        <h2 class="chart-title">Life Balance</h2>
+        <div class="chart-container">
+          <canvas id="radarChart"></canvas>
+        </div>
+      </div>
+      <!-- Category Scores -->
+      <div class="category-scores" id="categoryScores"></div>
+    </section>
 
-    <!-- Empty state -->
-    <div class="empty-state" id="emptyState">
-      <span class="empty-icon">📋</span>
-      <p>No habits yet. Add one above to get started!</p>
-    </div>
+    <!-- Tab: Stats -->
+    <section class="tab-panel" id="tabStats" data-tab="stats">
+      <h2 class="tab-heading">Streaks & Progress</h2>
+      <div class="stats-overview" id="statsOverview"></div>
+      <h3 class="tab-subheading">Last 7 Days</h3>
+      <div class="weekly-chart" id="weeklyChart"></div>
+    </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-      <button class="clear-btn" id="clearDoneBtn" title="Remove completed habits">Clear Completed</button>
-      <button class="reset-btn" id="resetDayBtn" title="Uncheck all for a new day">Reset Day</button>
-    </footer>
-  </div>
+    <!-- Tab: Ideas -->
+    <section class="tab-panel" id="tabIdeas" data-tab="ideas">
+      <h2 class="tab-heading">Ideas & Notes</h2>
+      <p class="tab-description">Jot down unstructured plans, goals, or inspiration for the future.</p>
+      <textarea class="ideas-textarea" id="ideasTextarea" placeholder="Write your ideas here…"></textarea>
+      <div class="ideas-meta">
+        <span class="ideas-saved" id="ideasSavedIndicator"></span>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="nav-item active" data-tab="schedule" id="navSchedule">
+      <svg class="nav-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="4" width="18" height="17" rx="3" stroke="currentColor" stroke-width="1.8" />
+        <path d="M3 9h18" stroke="currentColor" stroke-width="1.8" />
+        <path d="M8 2v4M16 2v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        <path d="M8 13h2M14 13h2M8 17h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      <span class="nav-label">Schedule</span>
+    </button>
+    <button class="nav-item" data-tab="calendar" id="navCalendar">
+      <svg class="nav-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
+        <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="nav-label">Calendar</span>
+    </button>
+    <button class="nav-item radar-nav" data-tab="radar" id="navRadar">
+      <div class="radar-btn-glow"></div>
+      <svg class="nav-icon radar-icon" width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <polygon points="12,2 22,8.5 19,19.5 5,19.5 2,8.5" stroke="currentColor" stroke-width="1.8"
+          stroke-linejoin="round" fill="none" />
+        <polygon points="12,7 17,10.2 15.5,15.8 8.5,15.8 7,10.2" stroke="currentColor" stroke-width="1.2"
+          stroke-linejoin="round" fill="none" opacity="0.4" />
+      </svg>
+      <span class="nav-label">Radar</span>
+    </button>
+    <button class="nav-item" data-tab="stats" id="navStats">
+      <svg class="nav-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M6 20V14M12 20V8M18 20V4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+      </svg>
+      <span class="nav-label">Stats</span>
+    </button>
+    <button class="nav-item" data-tab="ideas" id="navIdeas">
+      <svg class="nav-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2a7 7 0 0 1 4 12.7V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.3A7 7 0 0 1 12 2z" stroke="currentColor"
+          stroke-width="1.8" />
+        <path d="M10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        <path d="M12 6v3M9 8.5l1.5 2M15 8.5l-1.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <span class="nav-label">Ideas</span>
+    </button>
+  </nav>
 
   <!-- 10-Day Evaluation Modal -->
   <div class="modal-overlay" id="feedbackOverlay">
