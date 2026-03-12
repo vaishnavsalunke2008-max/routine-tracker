@@ -1,9 +1,12 @@
-const CACHE_NAME = 'routine-tracker-v2';
+const CACHE_NAME = 'routine-tracker-v3';
 const ASSETS = [
     './',
     './index.html',
+    './auth.html',
     './style.css',
+    './auth.css',
     './app.js',
+    './supabase.js',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
@@ -29,10 +32,18 @@ self.addEventListener('activate', (e) => {
     self.clients.claim();
 });
 
-// Fetch — cache-first, fallback to network
+// Fetch — network-first for Supabase, cache-first for everything else
 self.addEventListener('fetch', (e) => {
-    // Only handle same-origin GET requests
+    // Only handle GET requests
     if (e.request.method !== 'GET') return;
+
+    const url = new URL(e.request.url);
+
+    // Always go to network for Supabase auth/API requests
+    if (url.hostname.includes('supabase.co') || url.hostname.includes('supabase.in')) {
+        e.respondWith(fetch(e.request));
+        return;
+    }
 
     e.respondWith(
         caches.match(e.request).then((cached) => {
@@ -45,7 +56,7 @@ self.addEventListener('fetch', (e) => {
             });
         }).catch(() => {
             if (e.request.mode === 'navigate') {
-                return caches.match('./index.html');
+                return caches.match('./auth.html');
             }
         })
     );

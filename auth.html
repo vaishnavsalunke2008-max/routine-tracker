@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Routine Tracker — Sign In</title>
+    <meta name="description" content="Sign in to your Routine Tracker account to track daily habits and life balance.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="auth.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="theme-color" content="#0f0f13">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+    <!-- Background Orbs -->
+    <div class="auth-bg">
+        <div class="auth-bg-orb"></div>
+        <div class="auth-bg-orb"></div>
+        <div class="auth-bg-orb"></div>
+    </div>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <!-- Header -->
+            <div class="auth-header">
+                <span class="auth-logo">🎯</span>
+                <h1 class="auth-title">Routine Tracker</h1>
+                <p class="auth-subtitle">Build better habits, one day at a time</p>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="loginTab" type="button">Login</button>
+                <button class="auth-tab" id="signupTab" type="button">Sign Up</button>
+            </div>
+
+            <!-- Error / Success Messages -->
+            <div class="auth-error" id="authError"></div>
+            <div class="auth-success" id="authSuccess"></div>
+
+            <!-- Auth Form -->
+            <form class="auth-form" id="authForm" autocomplete="on">
+                <div class="auth-input-group">
+                    <input type="email" class="auth-input" id="authEmail" placeholder="Email address" required
+                        autocomplete="email">
+                    <span class="auth-input-icon">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                            <rect x="2" y="4" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5" />
+                            <path d="M2 6l7 4.5L16 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg>
+                    </span>
+                </div>
+                <div class="auth-input-group">
+                    <input type="password" class="auth-input" id="authPassword" placeholder="Password" required
+                        minlength="6" autocomplete="current-password">
+                    <span class="auth-input-icon">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                            <rect x="3" y="8" width="12" height="8" rx="2" stroke="currentColor" stroke-width="1.5" />
+                            <path d="M6 8V5.5a3 3 0 0 1 6 0V8" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round" />
+                            <circle cx="9" cy="12" r="1" fill="currentColor" />
+                        </svg>
+                    </span>
+                    <button type="button" class="auth-password-toggle" id="passwordToggle"
+                        aria-label="Toggle password visibility">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" id="eyeIcon">
+                            <path d="M1.5 9s3-5.5 7.5-5.5S16.5 9 16.5 9s-3 5.5-7.5 5.5S1.5 9 1.5 9z"
+                                stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            <circle cx="9" cy="9" r="2.5" stroke="currentColor" stroke-width="1.5" />
+                        </svg>
+                    </button>
+                </div>
+                <button type="submit" class="auth-submit-btn" id="authSubmitBtn">
+                    <span class="btn-text" id="submitBtnText">Login</span>
+                    <span class="btn-spinner"></span>
+                </button>
+            </form>
+
+            <!-- Divider -->
+            <div class="auth-divider">
+                <span>or</span>
+            </div>
+
+            <!-- Google Sign In -->
+            <button type="button" class="auth-google-btn" id="googleBtn">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path
+                        d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"
+                        fill="#4285F4" />
+                    <path
+                        d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
+                        fill="#34A853" />
+                    <path
+                        d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
+                        fill="#FBBC05" />
+                    <path
+                        d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
+                        fill="#EA4335" />
+                </svg>
+                Continue with Google
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="auth-footer">
+            <p>Your habits, your journey ✨</p>
+        </div>
+    </div>
+
+    <script src="supabase.js"></script>
+    <script>
+        (() => {
+            'use strict';
+
+            // ─── DOM Refs ───
+            const loginTab = document.getElementById('loginTab');
+            const signupTab = document.getElementById('signupTab');
+            const authForm = document.getElementById('authForm');
+            const authEmail = document.getElementById('authEmail');
+            const authPassword = document.getElementById('authPassword');
+            const authSubmitBtn = document.getElementById('authSubmitBtn');
+            const submitBtnText = document.getElementById('submitBtnText');
+            const googleBtn = document.getElementById('googleBtn');
+            const authError = document.getElementById('authError');
+            const authSuccess = document.getElementById('authSuccess');
+            const passwordToggle = document.getElementById('passwordToggle');
+
+            let isLoginMode = true;
+
+            // ─── Check if already logged in ───
+            (async () => {
+                const session = await supaGetSession();
+                if (session) {
+                    window.location.href = 'index.html';
+                }
+            })();
+
+            // ─── Tab Switching ───
+            loginTab.addEventListener('click', () => {
+                isLoginMode = true;
+                loginTab.classList.add('active');
+                signupTab.classList.remove('active');
+                submitBtnText.textContent = 'Login';
+                authPassword.setAttribute('autocomplete', 'current-password');
+                clearMessages();
+            });
+
+            signupTab.addEventListener('click', () => {
+                isLoginMode = false;
+                signupTab.classList.add('active');
+                loginTab.classList.remove('active');
+                submitBtnText.textContent = 'Create Account';
+                authPassword.setAttribute('autocomplete', 'new-password');
+                clearMessages();
+            });
+
+            // ─── Password Toggle ───
+            passwordToggle.addEventListener('click', () => {
+                const isPassword = authPassword.type === 'password';
+                authPassword.type = isPassword ? 'text' : 'password';
+                passwordToggle.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+            });
+
+            // ─── Form Submit ───
+            authForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                clearMessages();
+
+                const email = authEmail.value.trim();
+                const password = authPassword.value;
+
+                if (!email || !password) {
+                    showError('Please fill in all fields.');
+                    return;
+                }
+
+                if (password.length < 6) {
+                    showError('Password must be at least 6 characters.');
+                    return;
+                }
+
+                setLoading(true);
+
+                try {
+                    if (isLoginMode) {
+                        const { data, error } = await supaSignIn(email, password);
+                        if (error) throw error;
+                        window.location.href = 'index.html';
+                    } else {
+                        const { data, error } = await supaSignUp(email, password);
+                        if (error) throw error;
+                        if (data.user && !data.session) {
+                            showSuccess('Account created! Check your email to confirm your account.');
+                            setLoading(false);
+                        } else {
+                            window.location.href = 'index.html';
+                        }
+                    }
+                } catch (err) {
+                    showError(formatError(err.message));
+                    setLoading(false);
+                }
+            });
+
+            // ─── Google Sign In ───
+            googleBtn.addEventListener('click', async () => {
+                clearMessages();
+                try {
+                    const { data, error } = await supaSignInWithGoogle();
+                    if (error) throw error;
+                    // Redirect handled by Supabase OAuth flow
+                } catch (err) {
+                    showError(formatError(err.message));
+                }
+            });
+
+            // ─── Helpers ───
+            function setLoading(loading) {
+                authSubmitBtn.disabled = loading;
+                authSubmitBtn.classList.toggle('loading', loading);
+            }
+
+            function showError(msg) {
+                authError.textContent = msg;
+                authError.classList.add('visible');
+                authSuccess.classList.remove('visible');
+            }
+
+            function showSuccess(msg) {
+                authSuccess.textContent = msg;
+                authSuccess.classList.add('visible');
+                authError.classList.remove('visible');
+            }
+
+            function clearMessages() {
+                authError.classList.remove('visible');
+                authSuccess.classList.remove('visible');
+            }
+
+            function formatError(msg) {
+                if (msg.includes('Invalid login')) return 'Invalid email or password.';
+                if (msg.includes('User already registered')) return 'An account with this email already exists.';
+                if (msg.includes('Email not confirmed')) return 'Please confirm your email before logging in.';
+                if (msg.includes('signup_disabled')) return 'Sign up is currently disabled.';
+                return msg || 'Something went wrong. Please try again.';
+            }
+        })();
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js', { scope: './' })
+                .then(() => console.log('SW registered'))
+                .catch((e) => console.log('SW registration failed', e));
+        }
+    </script>
+</body>
+
+</html>

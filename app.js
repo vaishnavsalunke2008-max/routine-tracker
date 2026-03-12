@@ -1,6 +1,20 @@
 // ─── Routine Tracker App ───
-(() => {
+(async () => {
   'use strict';
+
+  // ─── Auth Gate ───
+  let currentSession = null;
+  let currentUserId = null;
+  try {
+    currentSession = await supaGetSession();
+  } catch (e) {
+    console.warn('Auth check failed:', e);
+  }
+  if (!currentSession) {
+    window.location.href = 'auth.html';
+    return;
+  }
+  currentUserId = currentSession.user.id;
 
   // ─── DOM Refs ───
   const $ = (s) => document.querySelector(s);
@@ -89,14 +103,14 @@
   const habitReminderTime = $('#habitReminderTime');
   const radarIntervalInput = $('#radarInterval');
 
-  // ─── Constants ───
-  const STORAGE_KEY = 'routine_tracker_data';
-  const EVENTS_KEY = 'routine_tracker_events';
-  const IDEAS_KEY = 'routine_tracker_ideas';
-  const CATEGORIES_KEY = 'routine_tracker_categories';
+  // ─── Constants (user-scoped) ───
+  const STORAGE_KEY = 'routine_tracker_data_' + currentUserId;
+  const EVENTS_KEY = 'routine_tracker_events_' + currentUserId;
+  const IDEAS_KEY = 'routine_tracker_ideas_' + currentUserId;
+  const CATEGORIES_KEY = 'routine_tracker_categories_' + currentUserId;
   const THEME_KEY = 'routine_tracker_theme';
-  const NOTIF_KEY = 'routine_tracker_notif';
-  const RADAR_INTERVAL_KEY = 'routine_tracker_radar_interval';
+  const NOTIF_KEY = 'routine_tracker_notif_' + currentUserId;
+  const RADAR_INTERVAL_KEY = 'routine_tracker_radar_interval_' + currentUserId;
 
   const DEFAULT_CATEGORIES = [
     { id: 'discipline', label: 'Discipline', icon: '🎯', color: '#a29bfe' },
@@ -1266,4 +1280,20 @@
   switchTab('schedule');
   scheduleNotification();
   scheduleHabitReminders();
+
+  // ─── Show user email ───
+  const userEmailLabel = document.getElementById('userEmailLabel');
+  if (userEmailLabel && currentSession.user) {
+    userEmailLabel.textContent = currentSession.user.email || 'Logged in';
+  }
+
+  // ─── Logout ───
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      await supaSignOut();
+      window.location.href = 'auth.html';
+    });
+  }
+
 })();

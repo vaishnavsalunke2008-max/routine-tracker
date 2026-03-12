@@ -3,7 +3,7 @@
   "name": "Routine Tracker",
   "short_name": "Routines",
   "description": "Track daily habits, visualize life balance, and get 10-day evaluations.",
-  "start_url": ".",
+  "start_url": "./auth.html",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f0f13",
