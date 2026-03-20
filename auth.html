@@ -41,6 +41,9 @@
                 <button class="auth-tab" id="signupTab" type="button">Sign Up</button>
             </div>
 
+            <!-- Info / Status Message -->
+            <div class="auth-info" id="authInfo"></div>
+
             <!-- Error / Success Messages -->
             <div class="auth-error" id="authError"></div>
             <div class="auth-success" id="authSuccess"></div>
@@ -106,7 +109,8 @@
                         d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
                         fill="#EA4335" />
                 </svg>
-                Continue with Google
+                <span class="google-btn-text">Continue with Google</span>
+                <span class="btn-spinner"></span>
             </button>
         </div>
 
@@ -132,15 +136,20 @@
             const googleBtn = document.getElementById('googleBtn');
             const authError = document.getElementById('authError');
             const authSuccess = document.getElementById('authSuccess');
+            const authInfo = document.getElementById('authInfo');
             const passwordToggle = document.getElementById('passwordToggle');
 
             let isLoginMode = true;
 
-            // ─── Check if already logged in ───
+            // ─── Check if already logged in (with retry for cold starts) ───
             (async () => {
-                const session = await supaGetSession();
-                if (session) {
-                    window.location.href = 'index.html';
+                try {
+                    const session = await supaGetSession();
+                    if (session) {
+                        window.location.href = 'index.html';
+                    }
+                } catch (_) {
+                    // Silently ignore — user can still log in manually
                 }
             })();
 
@@ -170,7 +179,7 @@
                 passwordToggle.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
             });
 
-            // ─── Form Submit ───
+            // ─── Form Submit (with retry for cold starts) ───
             authForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 clearMessages();
@@ -189,37 +198,50 @@
                 }
 
                 setLoading(true);
+                showInfo('Connecting to server, please wait…');
+
+                const onRetry = (attempt) => {
+                    showInfo('Waking up server, please wait… (attempt ' + (attempt + 1) + '/3)');
+                };
 
                 try {
                     if (isLoginMode) {
-                        const { data, error } = await supaSignIn(email, password);
-                        if (error) throw error;
+                        const { data } = await supaSignIn(email, password, onRetry);
                         window.location.href = 'index.html';
                     } else {
-                        const { data, error } = await supaSignUp(email, password);
-                        if (error) throw error;
+                        const { data } = await supaSignUp(email, password, onRetry);
                         if (data.user && !data.session) {
                             showSuccess('Account created! Check your email to confirm your account.');
+                            clearInfo();
                             setLoading(false);
                         } else {
                             window.location.href = 'index.html';
                         }
                     }
                 } catch (err) {
+                    clearInfo();
                     showError(formatError(err.message));
                     setLoading(false);
                 }
             });
 
-            // ─── Google Sign In ───
+            // ─── Google Sign In (with retry for cold starts) ───
             googleBtn.addEventListener('click', async () => {
                 clearMessages();
+                setGoogleLoading(true);
+                showInfo('Connecting to server, please wait…');
+
+                const onRetry = (attempt) => {
+                    showInfo('Waking up server, please wait… (attempt ' + (attempt + 1) + '/3)');
+                };
+
                 try {
-                    const { data, error } = await supaSignInWithGoogle();
-                    if (error) throw error;
+                    await supaSignInWithGoogle(onRetry);
                     // Redirect handled by Supabase OAuth flow
                 } catch (err) {
+                    clearInfo();
                     showError(formatError(err.message));
+                    setGoogleLoading(false);
                 }
             });
 
@@ -227,6 +249,11 @@
             function setLoading(loading) {
                 authSubmitBtn.disabled = loading;
                 authSubmitBtn.classList.toggle('loading', loading);
+            }
+
+            function setGoogleLoading(loading) {
+                googleBtn.disabled = loading;
+                googleBtn.classList.toggle('loading', loading);
             }
 
             function showError(msg) {
@@ -241,17 +268,32 @@
                 authError.classList.remove('visible');
             }
 
+            function showInfo(msg) {
+                authInfo.textContent = msg;
+                authInfo.classList.add('visible');
+                authError.classList.remove('visible');
+            }
+
+            function clearInfo() {
+                authInfo.classList.remove('visible');
+            }
+
             function clearMessages() {
                 authError.classList.remove('visible');
                 authSuccess.classList.remove('visible');
+                authInfo.classList.remove('visible');
             }
 
             function formatError(msg) {
+                if (!msg) return 'Something went wrong. Please try again.';
+                // Network / cold-start errors — never show raw message
+                if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('fetch') || msg.includes('ECONNREFUSED') || msg.includes('net::'))
+                    return 'Unable to connect to the server. Please check your internet and try again.';
                 if (msg.includes('Invalid login')) return 'Invalid email or password.';
                 if (msg.includes('User already registered')) return 'An account with this email already exists.';
                 if (msg.includes('Email not confirmed')) return 'Please confirm your email before logging in.';
                 if (msg.includes('signup_disabled')) return 'Sign up is currently disabled.';
-                return msg || 'Something went wrong. Please try again.';
+                return 'Something went wrong. Please try again.';
             }
         })();
     </script>
