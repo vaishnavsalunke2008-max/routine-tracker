@@ -1390,3 +1390,12 @@
   }
 
 })();
+const dropdown = document.getElementById("profileDropdown");
+
+// TEMP TEST: force it visible after 2 seconds
+setTimeout(() => {
+  console.log("forcing dropdown visible");
+  if (dropdown) {
+    dropdown.style.display = "block";
+  }
+}, 2000);
