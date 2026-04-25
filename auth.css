@@ -9,26 +9,26 @@
 }
 
 :root {
-    --bg-primary: #0f0f13;
-    --bg-secondary: #16161d;
-    --bg-card: #1c1c26;
-    --bg-hover: #22222e;
-    --bg-input: #1a1a24;
-    --border: #2a2a38;
-    --border-focus: #6c5ce7;
-    --text-primary: #eaeaf0;
-    --text-secondary: #8888a0;
-    --text-muted: #555568;
-    --accent: #6c5ce7;
-    --accent-soft: rgba(108, 92, 231, 0.15);
-    --accent-glow: rgba(108, 92, 231, 0.35);
-    --green: #00d68f;
-    --green-soft: rgba(0, 214, 143, 0.12);
-    --red: #ff6b81;
-    --red-soft: rgba(255, 107, 129, 0.12);
+    --bg-primary: #f5f5fa;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-hover: #eeeef5;
+    --bg-input: #f0f0f6;
+    --border: #d8d8e5;
+    --border-focus: #22c55e;
+    --text-primary: #1a1a2e;
+    --text-secondary: #5a5a78;
+    --text-muted: #8888a0;
+    --accent: #22c55e;
+    --accent-soft: rgba(34, 197, 94, 0.12);
+    --accent-glow: rgba(34, 197, 94, 0.25);
+    --green: #00b874;
+    --green-soft: rgba(0, 184, 116, 0.1);
+    --red: #e74c5e;
+    --red-soft: rgba(231, 76, 94, 0.1);
     --radius: 14px;
     --radius-sm: 10px;
-    --shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     --transition: 0.2s cubic-bezier(.4, 0, .2, 1);
     --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -79,7 +79,7 @@ body {
 .auth-bg-orb:nth-child(2) {
     width: 250px;
     height: 250px;
-    background: #a855f7;
+    background: #16a34a;
     bottom: -60px;
     left: -50px;
     animation-delay: -4s;
@@ -139,13 +139,13 @@ body {
 
 /* ─── Auth Card ─── */
 .auth-card {
-    background: rgba(28, 28, 38, 0.65);
+    background: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(42, 42, 56, 0.6);
+    border: 1px solid rgba(216, 216, 229, 0.6);
     border-radius: 20px;
     padding: 36px 28px 30px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(108, 92, 231, 0.06) inset;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(34, 197, 94, 0.06) inset;
 }
 
 /* ─── Header ─── */
@@ -294,7 +294,7 @@ body {
 .auth-submit-btn {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, var(--accent), #a855f7);
+    background: linear-gradient(135deg, var(--accent), #16a34a);
     border: none;
     border-radius: var(--radius-sm);
     font-size: 0.9rem;
@@ -512,7 +512,7 @@ body {
     display: none;
     padding: 12px 14px;
     background: var(--accent-soft);
-    border: 1px solid rgba(108, 92, 231, 0.25);
+    border: 1px solid rgba(34, 197, 94, 0.25);
     border-radius: var(--radius-sm);
     font-size: 0.78rem;
     color: var(--accent);
@@ -546,7 +546,7 @@ body {
 }
 
 .auth-footer a:hover {
-    color: #a855f7;
+    color: #16a34a;
 }
 
 /* ─── Responsive ─── */

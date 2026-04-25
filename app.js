@@ -113,14 +113,14 @@
   const RADAR_INTERVAL_KEY = 'routine_tracker_radar_interval_' + currentUserId;
 
   const DEFAULT_CATEGORIES = [
-    { id: 'discipline', label: 'Discipline', icon: '🎯', color: '#a29bfe' },
+    { id: 'discipline', label: 'Discipline', icon: '🎯', color: '#4ade80' },
     { id: 'health', label: 'Health', icon: '💪', color: '#00d68f' },
     { id: 'content', label: 'Content', icon: '📝', color: '#fdcb6e' },
     { id: 'skill', label: 'Skill', icon: '🧠', color: '#74b9ff' },
     { id: 'spiritual', label: 'Spiritual', icon: '🧘', color: '#e84393' },
   ];
 
-  const PALETTE = ['#a29bfe', '#00d68f', '#fdcb6e', '#74b9ff', '#e84393', '#fd79a8', '#55efc4', '#ffeaa7', '#81ecec', '#dfe6e9'];
+  const PALETTE = ['#4ade80', '#00d68f', '#fdcb6e', '#74b9ff', '#e84393', '#fd79a8', '#55efc4', '#ffeaa7', '#81ecec', '#dfe6e9'];
 
   // ─── Dynamic Categories ───
   function loadCategories() {
@@ -252,8 +252,8 @@
         datasets: [{
           label: 'Today',
           data: CATS.map(() => 0),
-          backgroundColor: 'rgba(108, 92, 231, 0.15)',
-          borderColor: '#6c5ce7',
+          backgroundColor: 'rgba(34, 197, 94, 0.15)',
+          borderColor: '#22c55e',
           borderWidth: 2,
           pointBackgroundColor: CATS.map(c => COLORS[c]),
           pointBorderColor: '#fff',
@@ -341,7 +341,7 @@
         <div class="cat-score-info">
           <div class="cat-score-name">${LABELS[cat] || cat}</div>
           <div class="cat-score-bar-track">
-            <div class="cat-score-bar-fill" style="width:${pct}%;background:${COLORS[cat] || '#6c5ce7'}"></div>
+            <div class="cat-score-bar-fill" style="width:${pct}%;background:${COLORS[cat] || '#22c55e'}"></div>
           </div>
         </div>
         <span class="cat-score-pct">${pct}%</span>
@@ -790,20 +790,20 @@
   // ─── Settings: Appearance ───
   // ═══════════════════════════════════════
   function loadTheme() {
-    return localStorage.getItem(THEME_KEY) || 'dark';
+    return localStorage.getItem(THEME_KEY) || 'light';
   }
 
   function applyTheme(theme) {
-    if (theme === 'light') {
-      document.body.classList.add('light-theme');
+    if (theme === 'dark') {
+      document.body.classList.add('dark-theme');
       themeToggle.checked = true;
-      themeIcon.textContent = '☀️';
-      themeLabel.textContent = 'Light Mode';
-    } else {
-      document.body.classList.remove('light-theme');
-      themeToggle.checked = false;
       themeIcon.textContent = '🌙';
       themeLabel.textContent = 'Dark Mode';
+    } else {
+      document.body.classList.remove('dark-theme');
+      themeToggle.checked = false;
+      themeIcon.textContent = '☀️';
+      themeLabel.textContent = 'Light Mode';
     }
     localStorage.setItem(THEME_KEY, theme);
     // Update radar chart colors for theme
@@ -822,7 +822,7 @@
   }
 
   themeToggle.addEventListener('change', () => {
-    applyTheme(themeToggle.checked ? 'light' : 'dark');
+    applyTheme(themeToggle.checked ? 'dark' : 'light');
   });
 
   // ═══════════════════════════════════════
