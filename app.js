@@ -1281,13 +1281,84 @@
   scheduleNotification();
   scheduleHabitReminders();
 
-  // ─── Show user email ───
+  // ─── Profile Dropdown ───
+  const profileBtn = document.getElementById('profileBtn');
+  const profileDropdown = document.getElementById('profileDropdown');
+  const profileName = document.getElementById('profileName');
+  const profileEmail = document.getElementById('profileEmail');
+  const profileAvatar = document.getElementById('profileAvatar');
+  const profileLogoutBtn = document.getElementById('profileLogoutBtn');
+
+  // Populate profile info from Supabase session
   const userEmailLabel = document.getElementById('userEmailLabel');
-  if (userEmailLabel && currentSession.user) {
-    userEmailLabel.textContent = currentSession.user.email || 'Logged in';
+  const profileAvatarImg = document.getElementById('profileAvatarImg');
+  const profileAvatarInitial = document.getElementById('profileAvatarInitial');
+  if (currentSession && currentSession.user) {
+    const user = currentSession.user;
+    const email = user.email || 'No email';
+    const meta = user.user_metadata || {};
+    const displayName = meta.full_name || meta.name || email.split('@')[0];
+    const avatarUrl = meta.avatar_url || meta.picture || null;
+    const initials = displayName.charAt(0).toUpperCase();
+
+    if (profileName) profileName.textContent = displayName;
+    if (profileEmail) profileEmail.textContent = email;
+    if (userEmailLabel) userEmailLabel.textContent = email;
+
+    // Handle avatar: show image if available, otherwise show initial
+    if (avatarUrl && profileAvatarImg && profileAvatarInitial) {
+      profileAvatarImg.src = avatarUrl;
+      profileAvatarImg.alt = displayName;
+      profileAvatarImg.style.display = 'block';
+      profileAvatarInitial.style.display = 'none';
+
+      // Replace top-bar profile SVG with user's avatar
+      if (profileBtn) {
+        profileBtn.innerHTML = `<img src="${avatarUrl}" alt="${displayName}" class="profile-btn-avatar" />`;
+      }
+    } else if (profileAvatarInitial) {
+      profileAvatarInitial.textContent = initials;
+      profileAvatarInitial.style.display = '';
+      if (profileAvatarImg) profileAvatarImg.style.display = 'none';
+
+      // Replace top-bar profile SVG with user's initial
+      if (profileBtn) {
+        profileBtn.innerHTML = `<span class="profile-btn-initial">${initials}</span>`;
+      }
+    }
   }
 
-  // ─── Logout ───
+  // Toggle dropdown on profile button click
+  if (profileBtn && profileDropdown) {
+    profileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      profileDropdown.classList.toggle('open');
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      if (!profileDropdown.contains(e.target) && !profileBtn.contains(e.target)) {
+        profileDropdown.classList.remove('open');
+      }
+    });
+
+    // Close dropdown on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        profileDropdown.classList.remove('open');
+      }
+    });
+  }
+
+  // Logout from profile dropdown
+  if (profileLogoutBtn) {
+    profileLogoutBtn.addEventListener('click', async () => {
+      await supaSignOut();
+      window.location.href = 'auth.html';
+    });
+  }
+
+  // ─── Logout (Settings Drawer) ───
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
