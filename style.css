@@ -112,29 +112,33 @@ body {
 
 /* ─── Profile Dropdown ─── */
 .profile-dropdown {
+  display: none;
   position: fixed;
-  top: calc(var(--top-bar-h) - 4px);
+  top: var(--top-bar-h);
   right: 12px;
   width: 260px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
-  z-index: 1000;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-8px) scale(0.97);
-  transform-origin: top right;
-  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s cubic-bezier(.4, 0, .2, 1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 9999;
   overflow: hidden;
-  pointer-events: none;
+  animation: profileDropdownIn 0.18s ease-out;
 }
 
 .profile-dropdown.open {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
+  display: block;
+}
+
+@keyframes profileDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .profile-dropdown-header {

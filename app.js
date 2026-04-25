@@ -1331,17 +1331,30 @@
   // Toggle dropdown on profile button click
   console.log('[Profile] profileBtn:', !!profileBtn, 'profileDropdown:', !!profileDropdown);
   if (profileBtn && profileDropdown) {
+    // Ensure dropdown starts hidden
+    profileDropdown.style.display = 'none';
+
     profileBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      e.preventDefault();
       console.log('profile clicked');
-      profileDropdown.classList.toggle('open');
-      console.log('[Profile] dropdown open:', profileDropdown.classList.contains('open'));
+
+      const isOpen = profileDropdown.classList.contains('open');
+      if (isOpen) {
+        profileDropdown.classList.remove('open');
+        profileDropdown.style.display = 'none';
+      } else {
+        profileDropdown.classList.add('open');
+        profileDropdown.style.display = 'block';
+      }
+      console.log('dropdown toggled', !isOpen ? 'OPEN' : 'CLOSED');
     });
 
     // Close dropdown on outside click
     document.addEventListener('click', (e) => {
       if (!profileDropdown.contains(e.target) && !profileBtn.contains(e.target)) {
         profileDropdown.classList.remove('open');
+        profileDropdown.style.display = 'none';
       }
     });
 
@@ -1349,6 +1362,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         profileDropdown.classList.remove('open');
+        profileDropdown.style.display = 'none';
       }
     });
   } else {
