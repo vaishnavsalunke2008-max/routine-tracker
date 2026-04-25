@@ -1329,10 +1329,13 @@
   }
 
   // Toggle dropdown on profile button click
+  console.log('[Profile] profileBtn:', !!profileBtn, 'profileDropdown:', !!profileDropdown);
   if (profileBtn && profileDropdown) {
     profileBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      console.log('profile clicked');
       profileDropdown.classList.toggle('open');
+      console.log('[Profile] dropdown open:', profileDropdown.classList.contains('open'));
     });
 
     // Close dropdown on outside click
@@ -1348,14 +1351,19 @@
         profileDropdown.classList.remove('open');
       }
     });
+  } else {
+    console.error('[Profile] Missing elements - profileBtn:', profileBtn, 'profileDropdown:', profileDropdown);
   }
 
   // Logout from profile dropdown
   if (profileLogoutBtn) {
     profileLogoutBtn.addEventListener('click', async () => {
+      console.log('[Profile] Logout clicked');
       await supaSignOut();
       window.location.href = 'auth.html';
     });
+  } else {
+    console.error('[Profile] Missing profileLogoutBtn');
   }
 
   // ─── Logout (Settings Drawer) ───
