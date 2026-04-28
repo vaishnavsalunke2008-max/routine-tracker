@@ -1,11 +1,4 @@
-self.addEventListener("install", (event) => {
-  self.skipWaiting();
-});
-
-self.addEventListener("activate", (event) => {
-  self.clients.claim();
-});
-const CACHE_NAME = 'routine-tracker-v4';
+const CACHE_NAME = 'routine-tracker-v5';
 const ASSETS = [
     './',
     './index.html',
@@ -37,6 +30,25 @@ self.addEventListener('activate', (e) => {
         )
     );
     self.clients.claim();
+});
+
+// Notification click — open or focus the app
+self.addEventListener('notificationclick', (e) => {
+    e.notification.close();
+    e.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // Focus existing tab if found
+            for (const client of clientList) {
+                if (client.url.includes('index.html') && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // Otherwise open a new tab
+            if (self.clients.openWindow) {
+                return self.clients.openWindow('./index.html');
+            }
+        })
+    );
 });
 
 // Fetch — network-first for Supabase, cache-first for everything else

@@ -546,20 +546,34 @@
   }
 
   // ─── Reminder Toggle in Add Form ───
-  reminderToggle.addEventListener('change', () => {
+  reminderToggle.addEventListener('change', async () => {
     if (reminderToggle.checked) {
       reminderTimeRow.classList.add('visible');
+      // Request notification permission when user enables a reminder
+      if ('Notification' in window && Notification.permission === 'default') {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          alert('Notification permission is required for reminders to work.');
+        }
+      }
     } else {
       reminderTimeRow.classList.remove('visible');
     }
   });
 
   // ─── Event Handlers (Schedule) ───
-  addForm.addEventListener('submit', (e) => {
+  addForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = habitInput.value.trim();
     if (!name) return;
     const isTimed = reminderToggle.checked;
+    // If timed, ensure notification permission
+    if (isTimed && 'Notification' in window && Notification.permission !== 'granted') {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        alert('Notification permission denied. The reminder was saved but notifications won\'t fire until you allow them.');
+      }
+    }
     const newHabit = {
       id: generateId(),
       name,
@@ -743,47 +757,85 @@
     if (target <= now) target.setDate(target.getDate() + 1);
     const delay = target - now;
     notifTimer = setTimeout(() => {
-      if (Notification.permission === 'granted') {
-        new Notification('Routine Tracker 🎯', {
-          body: 'Time to check in with your daily habits!',
-          icon: 'icons/icon-192.png',
-        });
-      }
+      showReminderNotification('Routines 🎯', 'Time to check in with your daily habits!');
       // Reschedule for next day
       scheduleNotification();
     }, delay);
   }
 
   // ─── Per-Habit Reminder Notifications ───
-  let habitTimers = [];
+  // Track which reminders already fired today to prevent duplicates
+  let firedReminders = new Set();
+  let habitReminderInterval = null;
 
-  function scheduleHabitReminders() {
-    // Clear existing habit timers
-    habitTimers.forEach(t => clearTimeout(t));
-    habitTimers = [];
-    // Only schedule if notification permission is granted
+  // Show notification via service worker (works even when tab is backgrounded)
+  async function showReminderNotification(title, body) {
+    // Try service worker notification first (more reliable in background)
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.showNotification(title, {
+          body: body,
+          icon: 'icons/icon-192.png',
+          badge: 'icons/icon-192.png',
+          vibrate: [200, 100, 200],
+          tag: 'habit-reminder-' + Date.now(),
+          requireInteraction: true,
+        });
+        return;
+      } catch (e) {
+        console.warn('SW notification failed, falling back:', e);
+      }
+    }
+    // Fallback to direct Notification API
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body: body,
+        icon: 'icons/icon-192.png',
+      });
+    }
+  }
+
+  // Check every 30 seconds if any habit reminders are due
+  function checkHabitReminders() {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const today = todayKey();
     const log = data.dailyLogs[today] || { completed: [] };
     const timedHabits = data.habits.filter(h => h.timed && h.reminderTime);
     const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
     timedHabits.forEach(habit => {
-      // Skip if already completed today
+      const reminderId = today + '_' + habit.id;
+      // Skip if already fired today or already completed
+      if (firedReminders.has(reminderId)) return;
       if (log.completed.includes(habit.id)) return;
+
       const [h, m] = habit.reminderTime.split(':').map(Number);
-      const target = new Date(now);
-      target.setHours(h, m, 0, 0);
-      // Only schedule if the time is in the future today
-      if (target <= now) return;
-      const delay = target - now;
-      const timer = setTimeout(() => {
-        new Notification(`⏰ Habit Reminder`, {
-          body: `Time for: ${habit.name}`,
-          icon: 'icons/icon-192.png',
-        });
-      }, delay);
-      habitTimers.push(timer);
+      const targetMinutes = h * 60 + m;
+
+      // Fire if we're within 1 minute after the target time
+      if (nowMinutes >= targetMinutes && nowMinutes <= targetMinutes + 1) {
+        firedReminders.add(reminderId);
+        showReminderNotification(
+          `${habit.name}`,
+          `⏰ Routines — It's time for this task!`
+        );
+      }
     });
+  }
+
+  function scheduleHabitReminders() {
+    // Reset fired reminders if it's a new day
+    const today = todayKey();
+    const stale = [...firedReminders].filter(id => !id.startsWith(today));
+    stale.forEach(id => firedReminders.delete(id));
+
+    // Clear and restart the interval checker
+    if (habitReminderInterval) clearInterval(habitReminderInterval);
+    habitReminderInterval = setInterval(checkHabitReminders, 30000); // every 30 seconds
+    // Also run an immediate check
+    checkHabitReminders();
   }
 
   // ═══════════════════════════════════════
