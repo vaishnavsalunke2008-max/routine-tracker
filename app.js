@@ -1442,3 +1442,12 @@
   }
 
 })();
+function testNotification() {
+  if (Notification.permission === "granted") {
+    new Notification("Test 🔔", {
+      body: "If you see this, notifications work"
+    });
+  } else {
+    alert("Notification permission not granted");
+  }
+}
