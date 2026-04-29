@@ -1451,3 +1451,15 @@ function testNotification() {
     alert("Notification permission not granted");
   }
 }
+async function testSupabaseConnection() {
+  const { data, error } = await supabase.from("tasks").select("*");
+
+  if (error) {
+    console.log("Supabase error:", error);
+  } else {
+    console.log("Supabase connected ✅", data);
+  }
+}
+
+// run once
+testSupabaseConnection();
