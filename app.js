@@ -581,7 +581,10 @@
       timed: isTimed,
       reminderTime: isTimed ? habitReminderTime.value : null,
     };
-    saveTaskToSupabase(newHabit);
+    saveTaskToSupabase({
+  title: newHabit.name,
+  time: newHabit.reminderTime
+});
     data.habits.push(newHabit);
     autoResetIfNewDay();
     saveData(data);
