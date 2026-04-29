@@ -581,6 +581,7 @@
       timed: isTimed,
       reminderTime: isTimed ? habitReminderTime.value : null,
     };
+    saveTaskToSupabase(newHabit);
     data.habits.push(newHabit);
     autoResetIfNewDay();
     saveData(data);
@@ -1463,3 +1464,26 @@ async function testSupabaseConnection() {
 
 // run once
 testSupabaseConnection();
+async function saveTaskToSupabase(task) {
+  const user = (await supabase.auth.getUser()).data.user;
+
+  if (!user) {
+    console.log("No user found");
+    return;
+  }
+
+  const { error } = await supabase.from("tasks").insert([
+    {
+      user_id: user.id,
+      title: task.title,
+      due_time: task.time,
+      notified: false
+    }
+  ]);
+
+  if (error) {
+    console.log("Error saving to Supabase:", error);
+  } else {
+    console.log("Task saved to Supabase ✅");
+  }
+}
