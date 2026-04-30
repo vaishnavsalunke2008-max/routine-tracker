@@ -1468,6 +1468,7 @@ async function testSupabaseConnection() {
 // run once
 testSupabaseConnection();
 async function saveTaskToSupabase(task) {
+  alert("Function is running");
   const user = (await supabase.auth.getUser()).data.user;
 
   if (!user) {
