@@ -455,6 +455,13 @@
   );
 </script>
  <script src="app.js?v=100"></script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(() => console.log('SW registered'))
+      .catch((e) => console.log('SW registration failed', e));
+  }
+</script>
  
 </body>
 
