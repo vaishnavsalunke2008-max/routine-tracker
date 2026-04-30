@@ -1,4 +1,12 @@
-const CACHE_NAME = 'routine-tracker-v100';
+self.addEventListener("install", () => {
+  console.log("SW installing new version");
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+const CACHE_NAME = 'routine-tracker-v2';
 const ASSETS = [
     './',
     './index.html',
