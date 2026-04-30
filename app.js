@@ -1485,7 +1485,7 @@ async function saveTaskToSupabase(task) {
       due_time: task.time,
       notified: false
     }
-  ]);
+  
 
   if (error) {
     console.log("Error saving to Supabase:", error);
