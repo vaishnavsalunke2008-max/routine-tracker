@@ -1492,3 +1492,7 @@ async function saveTaskToSupabase(task) {
     console.log("Task saved to Supabase ✅");
   }
 }
+saveTaskToSupabase({
+  title: "TEST TASK",
+  time: "10:00"
+});
