@@ -582,12 +582,7 @@ alert("APP JS LOADED");
       timed: isTimed,
       reminderTime: isTimed ? habitReminderTime.value : null,
     };
-   
-});
     data.habits.push(newHabit);
-   saveTaskToSupabase({
-  title: newHabit.name,
-  time: newHabit.reminderTime });
     autoResetIfNewDay();
     saveData(data);
     render();
@@ -1434,52 +1429,4 @@ alert("APP JS LOADED");
   }
 
 })();
-function testNotification() {
-  if (Notification.permission === "granted") {
-    new Notification("Test 🔔", {
-      body: "If you see this, notifications work"
-    });
-  } else {
-    alert("Notification permission not granted");
-  }
-}
-async function testSupabaseConnection() {
-  const { data, error } = await supabase.from("tasks").select("*");
 
-  if (error) {
-    console.log("Supabase error:", error);
-  } else {
-    console.log("Supabase connected ✅", data);
-  }
-}
-
-// run once
-testSupabaseConnection();
-async function saveTaskToSupabase(task) {
-  alert("Function is running");
-  const user = (await supabase.auth.getUser()).data.user;
-
-  if (!user) {
-    console.log("No user found");
-    return;
-  }
-
-  const { error } = await supabase.from("tasks").insert([
-    {
-      user_id: user.id,
-      title: task.title,
-      due_time: task.time,
-      notified: false
-    }
-  
-
-  if (error) {
-    console.log("Error saving to Supabase:", error);
-  } else {
-    console.log("Task saved to Supabase ✅");
-  }
-}
-saveTaskToSupabase({
-  title: "TEST TASK",
-  time: "10:00"
-});
