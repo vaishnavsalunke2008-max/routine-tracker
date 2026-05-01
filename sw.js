@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'routine-tracker-v8';
+const CACHE_NAME = 'routine-tracker-v9';
 const ASSETS = [
     './',
     './index.html',
@@ -288,5 +288,26 @@ self.addEventListener('fetch', (e) => {
                 }
             });
         })
+    );
+});
+
+// ─── Periodic Background Sync ───
+// This is the KEY mechanism for background notifications when the app is closed.
+// The browser wakes the SW periodically (minimum ~12 hours on most browsers,
+// but often more frequently for installed PWAs with high engagement).
+self.addEventListener('periodicsync', (e) => {
+    if (e.tag === 'check-reminders') {
+        e.waitUntil(
+            loadState().then(() => checkAllReminders())
+        );
+    }
+});
+
+// ─── Push event fallback ───
+// If a push server is added later, this handles incoming push messages.
+// For now, it also serves as a wake-up trigger.
+self.addEventListener('push', (e) => {
+    e.waitUntil(
+        loadState().then(() => checkAllReminders())
     );
 });

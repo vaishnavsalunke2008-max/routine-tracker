@@ -804,6 +804,26 @@
     scheduleHabitReminders();
   }, 60000); // every 60 seconds
 
+  // ─── Register Periodic Background Sync ───
+  // This wakes the SW even when the app is closed (requires PWA install on mobile)
+  async function registerPeriodicSync() {
+    if ('serviceWorker' in navigator && 'periodicSync' in (await navigator.serviceWorker.ready)) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+        if (status.state === 'granted') {
+          await reg.periodicSync.register('check-reminders', {
+            minInterval: 60 * 1000, // Request every 1 minute (browser may throttle)
+          });
+          console.log('[App] Periodic background sync registered');
+        }
+      } catch (e) {
+        console.log('[App] Periodic sync not available:', e.message);
+      }
+    }
+  }
+  registerPeriodicSync();
+
   // ═══════════════════════════════════════
   // ─── Settings: Appearance ───
   // ═══════════════════════════════════════
