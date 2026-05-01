@@ -1,5 +1,4 @@
 // ─── Routine Tracker App ───
-alert("APP JS LOADED");
 (async () => {
   'use strict';
 
