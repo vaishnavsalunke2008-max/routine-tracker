@@ -606,10 +606,14 @@ alert("APP JS LOADED");
       const today = todayKey();
       autoResetIfNewDay();
       const log = data.dailyLogs[today];
-      if (checkbox.checked) { if (!log.completed.includes(id)) log.completed.push(id); }
+      if (checkbox.checked) {
+        if (!log.completed.includes(id)) log.completed.push(id);
+        notifySWHabitCompleted(id);
+      }
       else { log.completed = log.completed.filter(x => x !== id); }
       saveData(data);
       render();
+      scheduleHabitReminders();
     }
     if (deleteBtn) {
       const id = deleteBtn.dataset.id;
@@ -716,7 +720,6 @@ alert("APP JS LOADED");
   }
 
   let notifSettings = loadNotifSettings();
-  let notifTimer = null;
 
   function syncNotifUI() {
     notifToggle.checked = notifSettings.enabled;
@@ -754,95 +757,58 @@ alert("APP JS LOADED");
   });
 
   function scheduleNotification() {
-    if (notifTimer) { clearTimeout(notifTimer); notifTimer = null; }
-    if (!notifSettings.enabled) return;
-    const [h, m] = notifSettings.time.split(':').map(Number);
-    const now = new Date();
-    const target = new Date(now);
-    target.setHours(h, m, 0, 0);
-    if (target <= now) target.setDate(target.getDate() + 1);
-    const delay = target - now;
-    notifTimer = setTimeout(() => {
-      showReminderNotification('Routines 🎯', 'Time to check in with your daily habits!');
-      // Reschedule for next day
-      scheduleNotification();
-    }, delay);
+    // Send daily reminder settings to the service worker
+    sendToSW({
+      type: 'UPDATE_DAILY_REMINDER',
+      enabled: notifSettings.enabled,
+      time: notifSettings.time,
+    });
   }
 
-  // ─── Per-Habit Reminder Notifications ───
-  // Track which reminders already fired today to prevent duplicates
-  let firedReminders = new Set();
-  let habitReminderInterval = null;
-
-  // Show notification via service worker (works even when tab is backgrounded)
-  async function showReminderNotification(title, body) {
-    // Try service worker notification first (more reliable in background)
+  // ─── Service Worker Communication ───
+  function sendToSW(msg) {
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        await reg.showNotification(title, {
-          body: body,
-          icon: 'icons/icon-192.png',
-          badge: 'icons/icon-192.png',
-          vibrate: [200, 100, 200],
-          tag: 'habit-reminder-' + Date.now(),
-          requireInteraction: true,
-        });
-        return;
-      } catch (e) {
-        console.warn('SW notification failed, falling back:', e);
-      }
-    }
-    // Fallback to direct Notification API
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, {
-        body: body,
-        icon: 'icons/icon-192.png',
+      navigator.serviceWorker.controller.postMessage(msg);
+    } else if ('serviceWorker' in navigator) {
+      // SW might not be controlling yet — wait for it
+      navigator.serviceWorker.ready.then((reg) => {
+        if (reg.active) {
+          reg.active.postMessage(msg);
+        }
       });
     }
   }
 
-  // Check every 30 seconds if any habit reminders are due
-  function checkHabitReminders() {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  // Send all timed habit reminders to the service worker
+  function scheduleHabitReminders() {
     const today = todayKey();
     const log = data.dailyLogs[today] || { completed: [] };
-    const timedHabits = data.habits.filter(h => h.timed && h.reminderTime);
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const timedHabits = data.habits
+      .filter(h => h.timed && h.reminderTime)
+      .map(h => ({
+        id: h.id,
+        name: h.name,
+        reminderTime: h.reminderTime,
+        completed: log.completed.includes(h.id),
+      }));
 
-    timedHabits.forEach(habit => {
-      const reminderId = today + '_' + habit.id;
-      // Skip if already fired today or already completed
-      if (firedReminders.has(reminderId)) return;
-      if (log.completed.includes(habit.id)) return;
-
-      const [h, m] = habit.reminderTime.split(':').map(Number);
-      const targetMinutes = h * 60 + m;
-
-      // Fire if we're within 1 minute after the target time
-      if (nowMinutes >= targetMinutes && nowMinutes <= targetMinutes + 1) {
-        firedReminders.add(reminderId);
-        showReminderNotification(
-          `${habit.name}`,
-          `⏰ Routines — It's time for this task!`
-        );
-      }
+    sendToSW({
+      type: 'UPDATE_HABIT_REMINDERS',
+      habits: timedHabits,
     });
   }
 
-  function scheduleHabitReminders() {
-    // Reset fired reminders if it's a new day
-    const today = todayKey();
-    const stale = [...firedReminders].filter(id => !id.startsWith(today));
-    stale.forEach(id => firedReminders.delete(id));
-
-    // Clear and restart the interval checker
-    if (habitReminderInterval) clearInterval(habitReminderInterval);
-    habitReminderInterval = setInterval(checkHabitReminders, 30000); // every 30 seconds
-    // Also run an immediate check
-    checkHabitReminders();
+  // Notify SW when a habit is marked complete (so it stops reminding)
+  function notifySWHabitCompleted(habitId) {
+    sendToSW({ type: 'MARK_COMPLETED', habitId });
   }
+
+  // Keep the SW alive by pinging it periodically
+  setInterval(() => {
+    sendToSW({ type: 'PING' });
+    // Also re-send reminders to keep SW in sync
+    scheduleHabitReminders();
+  }, 60000); // every 60 seconds
 
   // ═══════════════════════════════════════
   // ─── Settings: Appearance ───
@@ -1338,6 +1304,26 @@ alert("APP JS LOADED");
   switchTab('schedule');
   scheduleNotification();
   scheduleHabitReminders();
+
+  // ─── Ensure SW has reminder data before page closes ───
+  // When the user hides or closes the tab, re-send all reminders
+  // so the SW can persist them to IndexedDB before going to sleep.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      scheduleHabitReminders();
+      scheduleNotification();
+    }
+    // When coming back, also re-sync to pick up any changes
+    if (document.visibilityState === 'visible') {
+      scheduleHabitReminders();
+      scheduleNotification();
+    }
+  });
+
+  window.addEventListener('beforeunload', () => {
+    scheduleHabitReminders();
+    scheduleNotification();
+  });
 
   // ─── Profile Dropdown ───
   const profileBtn = document.getElementById('profileBtn');
