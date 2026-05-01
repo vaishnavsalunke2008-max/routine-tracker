@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<button onclick="testNotification()">Test Notification</button>
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -446,23 +446,20 @@
   </div>
 
   <script src="supabase.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-  const supabase = window.supabase.createClient(
-    "https://sucywzycbaknqzekcfoa.supabase.co/rest/v1/",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1Y3l3enljYmFrbnF6ZWtjZm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyODY5MTYsImV4cCI6MjA4ODg2MjkxNn0.O_ln-_f_oUuHRCghjfK7MjZ7dd8OGOmZ9pipG20z8D8"
-  );
-</script>
- <script src="app.js"></script>
+ <script src="app.js?v=4"></script>
   <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js', { scope: './' })
-      .then(() => console.log('SW registered'))
-      .catch((e) => console.log('SW registration failed', e));
-  }
-</script>
- 
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js', { scope: './' })
+        .then((reg) => {
+          console.log('SW registered', reg.scope);
+          // When a new SW takes over, reload to ensure fresh controller
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('SW controller changed — new SW active');
+          });
+        })
+        .catch((e) => console.log('SW registration failed', e));
+    }
+  </script>
 </body>
 
 </html>
