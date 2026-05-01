@@ -1,6 +1,20 @@
 // ─── Routine Tracker App ───
-(() => {
+(async () => {
   'use strict';
+
+  // ─── Auth Gate ───
+  let currentSession = null;
+  let currentUserId = null;
+  try {
+    currentSession = await supaGetSession();
+  } catch (e) {
+    console.warn('Auth check failed:', e);
+  }
+  if (!currentSession) {
+    window.location.href = 'auth.html';
+    return;
+  }
+  currentUserId = currentSession.user.id;
 
   // ─── DOM Refs ───
   const $ = (s) => document.querySelector(s);
@@ -89,24 +103,24 @@
   const habitReminderTime = $('#habitReminderTime');
   const radarIntervalInput = $('#radarInterval');
 
-  // ─── Constants ───
-  const STORAGE_KEY = 'routine_tracker_data';
-  const EVENTS_KEY = 'routine_tracker_events';
-  const IDEAS_KEY = 'routine_tracker_ideas';
-  const CATEGORIES_KEY = 'routine_tracker_categories';
+  // ─── Constants (user-scoped) ───
+  const STORAGE_KEY = 'routine_tracker_data_' + currentUserId;
+  const EVENTS_KEY = 'routine_tracker_events_' + currentUserId;
+  const IDEAS_KEY = 'routine_tracker_ideas_' + currentUserId;
+  const CATEGORIES_KEY = 'routine_tracker_categories_' + currentUserId;
   const THEME_KEY = 'routine_tracker_theme';
-  const NOTIF_KEY = 'routine_tracker_notif';
-  const RADAR_INTERVAL_KEY = 'routine_tracker_radar_interval';
+  const NOTIF_KEY = 'routine_tracker_notif_' + currentUserId;
+  const RADAR_INTERVAL_KEY = 'routine_tracker_radar_interval_' + currentUserId;
 
   const DEFAULT_CATEGORIES = [
-    { id: 'discipline', label: 'Discipline', icon: '🎯', color: '#a29bfe' },
+    { id: 'discipline', label: 'Discipline', icon: '🎯', color: '#4ade80' },
     { id: 'health', label: 'Health', icon: '💪', color: '#00d68f' },
     { id: 'content', label: 'Content', icon: '📝', color: '#fdcb6e' },
     { id: 'skill', label: 'Skill', icon: '🧠', color: '#74b9ff' },
     { id: 'spiritual', label: 'Spiritual', icon: '🧘', color: '#e84393' },
   ];
 
-  const PALETTE = ['#a29bfe', '#00d68f', '#fdcb6e', '#74b9ff', '#e84393', '#fd79a8', '#55efc4', '#ffeaa7', '#81ecec', '#dfe6e9'];
+  const PALETTE = ['#4ade80', '#00d68f', '#fdcb6e', '#74b9ff', '#e84393', '#fd79a8', '#55efc4', '#ffeaa7', '#81ecec', '#dfe6e9'];
 
   // ─── Dynamic Categories ───
   function loadCategories() {
@@ -238,8 +252,8 @@
         datasets: [{
           label: 'Today',
           data: CATS.map(() => 0),
-          backgroundColor: 'rgba(108, 92, 231, 0.15)',
-          borderColor: '#6c5ce7',
+          backgroundColor: 'rgba(34, 197, 94, 0.15)',
+          borderColor: '#22c55e',
           borderWidth: 2,
           pointBackgroundColor: CATS.map(c => COLORS[c]),
           pointBorderColor: '#fff',
@@ -327,7 +341,7 @@
         <div class="cat-score-info">
           <div class="cat-score-name">${LABELS[cat] || cat}</div>
           <div class="cat-score-bar-track">
-            <div class="cat-score-bar-fill" style="width:${pct}%;background:${COLORS[cat] || '#6c5ce7'}"></div>
+            <div class="cat-score-bar-fill" style="width:${pct}%;background:${COLORS[cat] || '#22c55e'}"></div>
           </div>
         </div>
         <span class="cat-score-pct">${pct}%</span>
@@ -532,20 +546,34 @@
   }
 
   // ─── Reminder Toggle in Add Form ───
-  reminderToggle.addEventListener('change', () => {
+  reminderToggle.addEventListener('change', async () => {
     if (reminderToggle.checked) {
       reminderTimeRow.classList.add('visible');
+      // Request notification permission when user enables a reminder
+      if ('Notification' in window && Notification.permission === 'default') {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          alert('Notification permission is required for reminders to work.');
+        }
+      }
     } else {
       reminderTimeRow.classList.remove('visible');
     }
   });
 
   // ─── Event Handlers (Schedule) ───
-  addForm.addEventListener('submit', (e) => {
+  addForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = habitInput.value.trim();
     if (!name) return;
     const isTimed = reminderToggle.checked;
+    // If timed, ensure notification permission
+    if (isTimed && 'Notification' in window && Notification.permission !== 'granted') {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        alert('Notification permission denied. The reminder was saved but notifications won\'t fire until you allow them.');
+      }
+    }
     const newHabit = {
       id: generateId(),
       name,
@@ -572,10 +600,14 @@
       const today = todayKey();
       autoResetIfNewDay();
       const log = data.dailyLogs[today];
-      if (checkbox.checked) { if (!log.completed.includes(id)) log.completed.push(id); }
+      if (checkbox.checked) {
+        if (!log.completed.includes(id)) log.completed.push(id);
+        notifySWHabitCompleted(id);
+      }
       else { log.completed = log.completed.filter(x => x !== id); }
       saveData(data);
       render();
+      scheduleHabitReminders();
     }
     if (deleteBtn) {
       const id = deleteBtn.dataset.id;
@@ -682,7 +714,6 @@
   }
 
   let notifSettings = loadNotifSettings();
-  let notifTimer = null;
 
   function syncNotifUI() {
     notifToggle.checked = notifSettings.enabled;
@@ -720,76 +751,77 @@
   });
 
   function scheduleNotification() {
-    if (notifTimer) { clearTimeout(notifTimer); notifTimer = null; }
-    if (!notifSettings.enabled) return;
-    const [h, m] = notifSettings.time.split(':').map(Number);
-    const now = new Date();
-    const target = new Date(now);
-    target.setHours(h, m, 0, 0);
-    if (target <= now) target.setDate(target.getDate() + 1);
-    const delay = target - now;
-    notifTimer = setTimeout(() => {
-      if (Notification.permission === 'granted') {
-        new Notification('Routine Tracker 🎯', {
-          body: 'Time to check in with your daily habits!',
-          icon: 'icons/icon-192.png',
-        });
-      }
-      // Reschedule for next day
-      scheduleNotification();
-    }, delay);
-  }
-
-  // ─── Per-Habit Reminder Notifications ───
-  let habitTimers = [];
-
-  function scheduleHabitReminders() {
-    // Clear existing habit timers
-    habitTimers.forEach(t => clearTimeout(t));
-    habitTimers = [];
-    // Only schedule if notification permission is granted
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    const today = todayKey();
-    const log = data.dailyLogs[today] || { completed: [] };
-    const timedHabits = data.habits.filter(h => h.timed && h.reminderTime);
-    const now = new Date();
-    timedHabits.forEach(habit => {
-      // Skip if already completed today
-      if (log.completed.includes(habit.id)) return;
-      const [h, m] = habit.reminderTime.split(':').map(Number);
-      const target = new Date(now);
-      target.setHours(h, m, 0, 0);
-      // Only schedule if the time is in the future today
-      if (target <= now) return;
-      const delay = target - now;
-      const timer = setTimeout(() => {
-        new Notification(`⏰ Habit Reminder`, {
-          body: `Time for: ${habit.name}`,
-          icon: 'icons/icon-192.png',
-        });
-      }, delay);
-      habitTimers.push(timer);
+    // Send daily reminder settings to the service worker
+    sendToSW({
+      type: 'UPDATE_DAILY_REMINDER',
+      enabled: notifSettings.enabled,
+      time: notifSettings.time,
     });
   }
+
+  // ─── Service Worker Communication ───
+  function sendToSW(msg) {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage(msg);
+    } else if ('serviceWorker' in navigator) {
+      // SW might not be controlling yet — wait for it
+      navigator.serviceWorker.ready.then((reg) => {
+        if (reg.active) {
+          reg.active.postMessage(msg);
+        }
+      });
+    }
+  }
+
+  // Send all timed habit reminders to the service worker
+  function scheduleHabitReminders() {
+    const today = todayKey();
+    const log = data.dailyLogs[today] || { completed: [] };
+    const timedHabits = data.habits
+      .filter(h => h.timed && h.reminderTime)
+      .map(h => ({
+        id: h.id,
+        name: h.name,
+        reminderTime: h.reminderTime,
+        completed: log.completed.includes(h.id),
+      }));
+
+    sendToSW({
+      type: 'UPDATE_HABIT_REMINDERS',
+      habits: timedHabits,
+    });
+  }
+
+  // Notify SW when a habit is marked complete (so it stops reminding)
+  function notifySWHabitCompleted(habitId) {
+    sendToSW({ type: 'MARK_COMPLETED', habitId });
+  }
+
+  // Keep the SW alive by pinging it periodically
+  setInterval(() => {
+    sendToSW({ type: 'PING' });
+    // Also re-send reminders to keep SW in sync
+    scheduleHabitReminders();
+  }, 60000); // every 60 seconds
 
   // ═══════════════════════════════════════
   // ─── Settings: Appearance ───
   // ═══════════════════════════════════════
   function loadTheme() {
-    return localStorage.getItem(THEME_KEY) || 'dark';
+    return localStorage.getItem(THEME_KEY) || 'light';
   }
 
   function applyTheme(theme) {
-    if (theme === 'light') {
-      document.body.classList.add('light-theme');
+    if (theme === 'dark') {
+      document.body.classList.add('dark-theme');
       themeToggle.checked = true;
-      themeIcon.textContent = '☀️';
-      themeLabel.textContent = 'Light Mode';
-    } else {
-      document.body.classList.remove('light-theme');
-      themeToggle.checked = false;
       themeIcon.textContent = '🌙';
       themeLabel.textContent = 'Dark Mode';
+    } else {
+      document.body.classList.remove('dark-theme');
+      themeToggle.checked = false;
+      themeIcon.textContent = '☀️';
+      themeLabel.textContent = 'Light Mode';
     }
     localStorage.setItem(THEME_KEY, theme);
     // Update radar chart colors for theme
@@ -808,7 +840,7 @@
   }
 
   themeToggle.addEventListener('change', () => {
-    applyTheme(themeToggle.checked ? 'light' : 'dark');
+    applyTheme(themeToggle.checked ? 'dark' : 'light');
   });
 
   // ═══════════════════════════════════════
@@ -1266,4 +1298,113 @@
   switchTab('schedule');
   scheduleNotification();
   scheduleHabitReminders();
+
+  // ─── Profile Dropdown ───
+  const profileBtn = document.getElementById('profileBtn');
+  const profileDropdown = document.getElementById('profileDropdown');
+  const profileName = document.getElementById('profileName');
+  const profileEmail = document.getElementById('profileEmail');
+  const profileAvatar = document.getElementById('profileAvatar');
+  const profileLogoutBtn = document.getElementById('profileLogoutBtn');
+
+  // Populate profile info from Supabase session
+  const userEmailLabel = document.getElementById('userEmailLabel');
+  const profileAvatarImg = document.getElementById('profileAvatarImg');
+  const profileAvatarInitial = document.getElementById('profileAvatarInitial');
+  if (currentSession && currentSession.user) {
+    const user = currentSession.user;
+    const email = user.email || 'No email';
+    const meta = user.user_metadata || {};
+    const displayName = meta.full_name || meta.name || email.split('@')[0];
+    const avatarUrl = meta.avatar_url || meta.picture || null;
+    const initials = displayName.charAt(0).toUpperCase();
+
+    if (profileName) profileName.textContent = displayName;
+    if (profileEmail) profileEmail.textContent = email;
+    if (userEmailLabel) userEmailLabel.textContent = email;
+
+    // Handle avatar: show image if available, otherwise show initial
+    if (avatarUrl && profileAvatarImg && profileAvatarInitial) {
+      profileAvatarImg.src = avatarUrl;
+      profileAvatarImg.alt = displayName;
+      profileAvatarImg.style.display = 'block';
+      profileAvatarInitial.style.display = 'none';
+
+      // Replace top-bar profile SVG with user's avatar
+      if (profileBtn) {
+        profileBtn.innerHTML = `<img src="${avatarUrl}" alt="${displayName}" class="profile-btn-avatar" />`;
+      }
+    } else if (profileAvatarInitial) {
+      profileAvatarInitial.textContent = initials;
+      profileAvatarInitial.style.display = '';
+      if (profileAvatarImg) profileAvatarImg.style.display = 'none';
+
+      // Replace top-bar profile SVG with user's initial
+      if (profileBtn) {
+        profileBtn.innerHTML = `<span class="profile-btn-initial">${initials}</span>`;
+      }
+    }
+  }
+
+  // Toggle dropdown on profile button click
+  console.log('[Profile] profileBtn:', !!profileBtn, 'profileDropdown:', !!profileDropdown);
+  if (profileBtn && profileDropdown) {
+    // Ensure dropdown starts hidden
+    profileDropdown.style.display = 'none';
+
+    profileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('profile clicked');
+
+      const isOpen = profileDropdown.classList.contains('open');
+      if (isOpen) {
+        profileDropdown.classList.remove('open');
+        profileDropdown.style.display = 'none';
+      } else {
+        profileDropdown.classList.add('open');
+        profileDropdown.style.display = 'block';
+      }
+      console.log('dropdown toggled', !isOpen ? 'OPEN' : 'CLOSED');
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      if (!profileDropdown.contains(e.target) && !profileBtn.contains(e.target)) {
+        profileDropdown.classList.remove('open');
+        profileDropdown.style.display = 'none';
+      }
+    });
+
+    // Close dropdown on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        profileDropdown.classList.remove('open');
+        profileDropdown.style.display = 'none';
+      }
+    });
+  } else {
+    console.error('[Profile] Missing elements - profileBtn:', profileBtn, 'profileDropdown:', profileDropdown);
+  }
+
+  // Logout from profile dropdown
+  if (profileLogoutBtn) {
+    profileLogoutBtn.addEventListener('click', async () => {
+      console.log('[Profile] Logout clicked');
+      await supaSignOut();
+      window.location.href = 'auth.html';
+    });
+  } else {
+    console.error('[Profile] Missing profileLogoutBtn');
+  }
+
+  // ─── Logout (Settings Drawer) ───
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      await supaSignOut();
+      window.location.href = 'auth.html';
+    });
+  }
+
 })();
