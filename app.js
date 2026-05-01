@@ -552,7 +552,9 @@
       // Request notification permission when user enables a reminder
       if ('Notification' in window && Notification.permission === 'default') {
         const perm = await Notification.requestPermission();
-        if (perm !== 'granted') {
+        if (perm === 'granted') {
+          subscribeToPush();
+        } else {
           alert('Notification permission is required for reminders to work.');
         }
       }
@@ -567,10 +569,12 @@
     const name = habitInput.value.trim();
     if (!name) return;
     const isTimed = reminderToggle.checked;
-    // If timed, ensure notification permission
+    // If timed, ensure notification permission and push subscription
     if (isTimed && 'Notification' in window && Notification.permission !== 'granted') {
       const perm = await Notification.requestPermission();
-      if (perm !== 'granted') {
+      if (perm === 'granted') {
+        subscribeToPush();
+      } else {
         alert('Notification permission denied. The reminder was saved but notifications won\'t fire until you allow them.');
       }
     }
@@ -730,6 +734,7 @@
           alert('Notification permission is required to set reminders.');
           return;
         }
+        subscribeToPush();
       } else {
         alert('Your browser does not support notifications.');
         notifToggle.checked = false;
@@ -773,7 +778,7 @@
     }
   }
 
-  // Send all timed habit reminders to the service worker
+  // Send all timed habit reminders to the service worker AND sync to Supabase
   function scheduleHabitReminders() {
     const today = todayKey();
     const log = data.dailyLogs[today] || { completed: [] };
@@ -786,15 +791,79 @@
         completed: log.completed.includes(h.id),
       }));
 
+    // Send to local service worker (fallback for when app is open)
     sendToSW({
       type: 'UPDATE_HABIT_REMINDERS',
       habits: timedHabits,
     });
+
+    // Sync to Supabase for server-side push notifications
+    if (currentUserId) {
+      supaSyncReminders(currentUserId, timedHabits).catch(e =>
+        console.warn('[App] Supabase reminder sync failed:', e)
+      );
+    }
   }
 
   // Notify SW when a habit is marked complete (so it stops reminding)
   function notifySWHabitCompleted(habitId) {
     sendToSW({ type: 'MARK_COMPLETED', habitId });
+    // Also mark in Supabase
+    if (currentUserId) {
+      supaMarkReminderCompleted(currentUserId, habitId).catch(e =>
+        console.warn('[App] Supabase mark completed failed:', e)
+      );
+    }
+  }
+
+  // ─── Web Push Subscription ───
+  const VAPID_PUBLIC_KEY = 'BFWyZ6MEFHssDn60mInJAdhvq_T-xPCV4uMCNi3KJZWT5Ke0_CwtG8WN5LyN_np565XX3obm9uAplylcR5S1A_g';
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  async function subscribeToPush() {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.log('[Push] Push not supported');
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+
+      // Check existing subscription
+      let subscription = await reg.pushManager.getSubscription();
+
+      if (!subscription) {
+        // Subscribe to push
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+        console.log('[Push] New subscription created');
+      } else {
+        console.log('[Push] Existing subscription found');
+      }
+
+      // Save subscription to Supabase
+      if (currentUserId && subscription) {
+        await supaSavePushSubscription(currentUserId, subscription);
+        console.log('[Push] Subscription saved to Supabase');
+      }
+    } catch (e) {
+      console.warn('[Push] Subscription failed:', e);
+    }
+  }
+
+  // Subscribe to push after notification permission is granted
+  if ('Notification' in window && Notification.permission === 'granted') {
+    subscribeToPush();
   }
 
   // Keep the SW alive by pinging it periodically
@@ -813,7 +882,7 @@
         const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
         if (status.state === 'granted') {
           await reg.periodicSync.register('check-reminders', {
-            minInterval: 60 * 1000, // Request every 1 minute (browser may throttle)
+            minInterval: 60 * 1000,
           });
           console.log('[App] Periodic background sync registered');
         }

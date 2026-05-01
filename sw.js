@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'routine-tracker-v9';
+const CACHE_NAME = 'routine-tracker-v10';
 const ASSETS = [
     './',
     './index.html',
@@ -303,11 +303,29 @@ self.addEventListener('periodicsync', (e) => {
     }
 });
 
-// ─── Push event fallback ───
-// If a push server is added later, this handles incoming push messages.
-// For now, it also serves as a wake-up trigger.
+// ─── Push event — handles server-sent Web Push notifications ───
+// This fires even when the app is CLOSED — the browser wakes the SW for push events.
 self.addEventListener('push', (e) => {
+    let payload = { title: 'Routines 🎯', body: 'Time for your habit!', icon: 'icons/icon-192.png' };
+
+    if (e.data) {
+        try {
+            payload = { ...payload, ...e.data.json() };
+        } catch {
+            payload.body = e.data.text() || payload.body;
+        }
+    }
+
     e.waitUntil(
-        loadState().then(() => checkAllReminders())
+        self.registration.showNotification(payload.title, {
+            body: payload.body,
+            icon: payload.icon || 'icons/icon-192.png',
+            badge: payload.badge || 'icons/icon-192.png',
+            vibrate: [200, 100, 200],
+            tag: payload.tag || 'habit-push-' + Date.now(),
+            renotify: true,
+            requireInteraction: true,
+            data: payload.data || { type: 'push' },
+        })
     );
 });

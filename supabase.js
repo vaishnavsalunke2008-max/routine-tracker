@@ -80,3 +80,85 @@ function supaOnAuthStateChange(callback) {
         callback(session);
     });
 }
+
+// ─── Push Subscription Helpers ───
+
+async function supaSavePushSubscription(userId, subscription) {
+    const keys = subscription.toJSON().keys;
+    const { error } = await supabaseClient
+        .from('push_subscriptions')
+        .upsert({
+            user_id: userId,
+            endpoint: subscription.endpoint,
+            p256dh: keys.p256dh,
+            auth: keys.auth,
+        }, { onConflict: 'user_id,endpoint' });
+    if (error) console.error('[Supabase] Save push sub error:', error);
+    return { error };
+}
+
+async function supaDeletePushSubscription(userId, endpoint) {
+    const { error } = await supabaseClient
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('endpoint', endpoint);
+    return { error };
+}
+
+// ─── Habit Reminder Sync ───
+
+async function supaSyncReminders(userId, timedHabits) {
+    // timedHabits: [{id, name, reminderTime, completed}]
+    if (!timedHabits || timedHabits.length === 0) {
+        // Delete all reminders for this user
+        await supabaseClient
+            .from('habit_reminders')
+            .delete()
+            .eq('user_id', userId);
+        return;
+    }
+
+    // Upsert all current timed habits
+    const rows = timedHabits.map(h => ({
+        id: h.id,
+        user_id: userId,
+        name: h.name,
+        reminder_time: h.reminderTime,
+        completed: h.completed || false,
+    }));
+
+    const { error } = await supabaseClient
+        .from('habit_reminders')
+        .upsert(rows, { onConflict: 'user_id,id' });
+
+    if (error) {
+        console.error('[Supabase] Sync reminders error:', error);
+        return;
+    }
+
+    // Delete reminders that no longer exist locally
+    const currentIds = timedHabits.map(h => h.id);
+    await supabaseClient
+        .from('habit_reminders')
+        .delete()
+        .eq('user_id', userId)
+        .not('id', 'in', `(${currentIds.join(',')})`);
+}
+
+async function supaMarkReminderCompleted(userId, habitId) {
+    await supabaseClient
+        .from('habit_reminders')
+        .update({ completed: true })
+        .eq('user_id', userId)
+        .eq('id', habitId);
+}
+
+async function supaResetRemindersForNewDay(userId) {
+    // Reset completed status and last_notified for a new day
+    await supabaseClient
+        .from('habit_reminders')
+        .update({ completed: false, last_notified: null })
+        .eq('user_id', userId);
+}
+
