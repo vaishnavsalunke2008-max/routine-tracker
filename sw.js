@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'routine-tracker-v7';
+const CACHE_NAME = 'routine-tracker-v8';
 const ASSETS = [
     './',
     './index.html',
@@ -274,18 +274,19 @@ self.addEventListener('fetch', (e) => {
     }
 
     e.respondWith(
-        caches.match(e.request).then((cached) => {
-            return cached || fetch(e.request).then((response) => {
-                if (response.status === 200) {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-                }
-                return response;
-            });
-        }).catch(() => {
-            if (e.request.mode === 'navigate') {
-                return caches.match('./auth.html');
+        fetch(e.request).then((response) => {
+            if (response.status === 200) {
+                const clone = response.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
             }
+            return response;
+        }).catch(() => {
+            return caches.match(e.request).then((cached) => {
+                if (cached) return cached;
+                if (e.request.mode === 'navigate') {
+                    return caches.match('./auth.html');
+                }
+            });
         })
     );
 });
