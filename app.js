@@ -550,12 +550,16 @@
     if (reminderToggle.checked) {
       reminderTimeRow.classList.add('visible');
       // Request notification permission when user enables a reminder
-      if ('Notification' in window && Notification.permission === 'default') {
-        const perm = await Notification.requestPermission();
-        if (perm === 'granted') {
+      if ('Notification' in window) {
+        if (Notification.permission === 'default') {
+          const perm = await Notification.requestPermission();
+          if (perm === 'granted') {
+            subscribeToPush();
+          } else {
+            alert('Notification permission is required for reminders to work.');
+          }
+        } else if (Notification.permission === 'granted') {
           subscribeToPush();
-        } else {
-          alert('Notification permission is required for reminders to work.');
         }
       }
     } else {
@@ -831,6 +835,7 @@
   async function subscribeToPush() {
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('[Diagnostic] Push notifications are NOT supported on this browser or device.');
         console.log('[Push] Push not supported');
         return;
       }
@@ -853,10 +858,18 @@
 
       // Save subscription to Supabase
       if (currentUserId && subscription) {
-        await supaSavePushSubscription(currentUserId, subscription);
-        console.log('[Push] Subscription saved to Supabase');
+        const { error } = await supaSavePushSubscription(currentUserId, subscription);
+        if (error) {
+          alert('[Diagnostic] Failed to save subscription to server: ' + JSON.stringify(error));
+        } else {
+          console.log('[Push] Subscription saved to Supabase');
+          alert('[Diagnostic] Subscription successfully linked to your account!');
+        }
+      } else {
+         alert('[Diagnostic] currentUserId or subscription is missing: ' + !!currentUserId + ' ' + !!subscription);
       }
     } catch (e) {
+      alert('[Diagnostic] Exception thrown during subscription: ' + e.message);
       console.warn('[Push] Subscription failed:', e);
     }
   }
