@@ -835,7 +835,6 @@
   async function subscribeToPush() {
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        alert('[Diagnostic] Push notifications are NOT supported on this browser or device.');
         console.log('[Push] Push not supported');
         return;
       }
@@ -860,16 +859,12 @@
       if (currentUserId && subscription) {
         const { error } = await supaSavePushSubscription(currentUserId, subscription);
         if (error) {
-          alert('[Diagnostic] Failed to save subscription to server: ' + JSON.stringify(error));
+          console.error('[Push] Failed to save subscription to server:', error);
         } else {
           console.log('[Push] Subscription saved to Supabase');
-          alert('[Diagnostic] Subscription successfully linked to your account!');
         }
-      } else {
-         alert('[Diagnostic] currentUserId or subscription is missing: ' + !!currentUserId + ' ' + !!subscription);
       }
     } catch (e) {
-      alert('[Diagnostic] Exception thrown during subscription: ' + e.message);
       console.warn('[Push] Subscription failed:', e);
     }
   }
