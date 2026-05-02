@@ -143,11 +143,21 @@ async function supaSyncReminders(userId, timedHabits) {
 
     // Delete reminders that no longer exist locally
     const currentIds = timedHabits.map(h => h.id);
-    await supabaseClient
+    const { data: existing } = await supabaseClient
         .from('habit_reminders')
-        .delete()
-        .eq('user_id', userId)
-        .not('id', 'in', `(${currentIds.join(',')})`);
+        .select('id')
+        .eq('user_id', userId);
+        
+    if (existing) {
+        const toDelete = existing.map(r => r.id).filter(id => !currentIds.includes(id));
+        if (toDelete.length > 0) {
+            await supabaseClient
+                .from('habit_reminders')
+                .delete()
+                .eq('user_id', userId)
+                .in('id', toDelete);
+        }
+    }
 }
 
 async function supaMarkReminderCompleted(userId, habitId) {
