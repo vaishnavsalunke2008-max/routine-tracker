@@ -85,6 +85,9 @@ function supaOnAuthStateChange(callback) {
 
 async function supaSavePushSubscription(userId, subscription) {
     const keys = subscription.toJSON().keys;
+    // Get user's timezone offset in minutes from UTC
+    // e.g. IST (UTC+5:30) = -(-330) = 330, EST (UTC-5) = -(-300) = 300
+    const timezoneOffset = -(new Date().getTimezoneOffset()); // positive = ahead of UTC
     const { error } = await supabaseClient
         .from('push_subscriptions')
         .upsert({
@@ -92,6 +95,7 @@ async function supaSavePushSubscription(userId, subscription) {
             endpoint: subscription.endpoint,
             p256dh: keys.p256dh,
             auth: keys.auth,
+            timezone_offset: timezoneOffset,
         }, { onConflict: 'user_id,endpoint' });
     if (error) console.error('[Supabase] Save push sub error:', error);
     return { error };

@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'routine-tracker-v10';
+const CACHE_NAME = 'routine-tracker-v11';
 const ASSETS = [
     './',
     './index.html',

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   endpoint TEXT NOT NULL,
   p256dh TEXT NOT NULL,
   auth TEXT NOT NULL,
+  timezone_offset INTEGER DEFAULT 0,  -- User's timezone offset in minutes from UTC (e.g. IST = 330)
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user_id, endpoint)
 );
@@ -47,3 +48,31 @@ GRANT ALL ON push_subscriptions TO service_role;
 GRANT ALL ON habit_reminders TO service_role;
 GRANT ALL ON push_subscriptions TO authenticated;
 GRANT ALL ON habit_reminders TO authenticated;
+
+-- ============================================
+-- MIGRATION: If tables already exist, add timezone_offset column
+-- ============================================
+-- Run this if you already created the tables before:
+-- ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS timezone_offset INTEGER DEFAULT 0;
+
+-- ============================================
+-- CRON: Schedule the Edge Function (requires pg_cron + pg_net extensions)
+-- ============================================
+-- Enable extensions first:
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- CREATE EXTENSION IF NOT EXISTS pg_net;
+--
+-- Then schedule:
+-- SELECT cron.schedule(
+--   'check-habit-reminders',
+--   '* * * * *',
+--   $$
+--   SELECT net.http_post(
+--     url := 'https://sucywzycbaknqzekcfoa.supabase.co/functions/v1/send-reminders',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'Authorization', 'Bearer <SERVICE_ROLE_KEY>'
+--     )
+--   );
+--   $$
+-- );
