@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'routine-tracker-v11';
+const CACHE_NAME = 'routine-tracker-v12';
 const ASSETS = [
     './',
     './index.html',
@@ -316,16 +316,28 @@ self.addEventListener('push', (e) => {
         }
     }
 
-    e.waitUntil(
-        self.registration.showNotification(payload.title, {
-            body: payload.body,
-            icon: payload.icon || 'icons/icon-192.png',
-            badge: payload.badge || 'icons/icon-192.png',
-            vibrate: [200, 100, 200],
-            tag: payload.tag || 'habit-push-' + Date.now(),
-            renotify: true,
-            requireInteraction: true,
-            data: payload.data || { type: 'push' },
+    // Mark the habit as fired today so the local reminder loop doesn't duplicate it
+    const habitId = payload.data && payload.data.habitId;
+    const markFired = habitId
+        ? loadState().then(() => {
+            const today = getTodayKey();
+            firedToday['habit_' + habitId] = today;
+            return saveState();
         })
+        : Promise.resolve();
+
+    e.waitUntil(
+        markFired.then(() =>
+            self.registration.showNotification(payload.title, {
+                body: payload.body,
+                icon: payload.icon || 'icons/icon-192.png',
+                badge: payload.badge || 'icons/icon-192.png',
+                vibrate: [200, 100, 200],
+                tag: payload.tag || 'habit-push-' + Date.now(),
+                renotify: true,
+                requireInteraction: true,
+                data: payload.data || { type: 'push' },
+            })
+        )
     );
 });
