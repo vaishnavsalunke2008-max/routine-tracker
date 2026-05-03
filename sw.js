@@ -316,28 +316,27 @@ self.addEventListener('push', (e) => {
         }
     }
 
-    // Mark the habit as fired today so the local reminder loop doesn't duplicate it
-    const habitId = payload.data && payload.data.habitId;
-    const markFired = habitId
-        ? loadState().then(() => {
-            const today = getTodayKey();
-            firedToday['habit_' + habitId] = today;
-            return saveState();
-        })
-        : Promise.resolve();
-
     e.waitUntil(
-        markFired.then(() =>
-            self.registration.showNotification(payload.title, {
-                body: payload.body,
-                icon: payload.icon || 'icons/icon-192.png',
-                badge: payload.badge || 'icons/icon-192.png',
-                vibrate: [200, 100, 200],
-                tag: payload.tag || 'habit-push-' + Date.now(),
-                renotify: true,
-                requireInteraction: true,
-                data: payload.data || { type: 'push' },
-            })
-        )
+        // Show notification immediately — this must not fail
+        self.registration.showNotification(payload.title, {
+            body: payload.body,
+            icon: payload.icon || 'icons/icon-192.png',
+            badge: payload.badge || 'icons/icon-192.png',
+            vibrate: [200, 100, 200],
+            tag: payload.tag || 'habit-push-' + Date.now(),
+            renotify: true,
+            requireInteraction: true,
+            data: payload.data || { type: 'push' },
+        }).then(() => {
+            // After showing, mark the habit as fired so local loop skips it
+            const habitId = payload.data && payload.data.habitId;
+            if (habitId) {
+                return loadState().then(() => {
+                    firedToday['habit_' + habitId] = getTodayKey();
+                    return saveState();
+                }).catch(() => {}); // never let dedup logic break notifications
+            }
+        })
     );
 });
+
