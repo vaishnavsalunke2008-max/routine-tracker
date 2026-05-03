@@ -18,6 +18,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@capacitor/core@latest/dist/capacitor.js"></script>
 </head>
 
 <body>
@@ -446,7 +447,8 @@
   </div>
 
   <script src="supabase.js"></script>
- <script src="app.js?v=7"></script>
+  <script src="native-notifications.js"></script>
+  <script src="app.js?v=8"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { scope: './' })
