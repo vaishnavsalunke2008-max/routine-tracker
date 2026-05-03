@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'routine-tracker-v12';
+const CACHE_NAME = 'routine-tracker-v13';
 const ASSETS = [
     './',
     './index.html',
@@ -317,7 +317,6 @@ self.addEventListener('push', (e) => {
     }
 
     e.waitUntil(
-        // Show notification immediately — this must not fail
         self.registration.showNotification(payload.title, {
             body: payload.body,
             icon: payload.icon || 'icons/icon-192.png',
@@ -327,15 +326,6 @@ self.addEventListener('push', (e) => {
             renotify: true,
             requireInteraction: true,
             data: payload.data || { type: 'push' },
-        }).then(() => {
-            // After showing, mark the habit as fired so local loop skips it
-            const habitId = payload.data && payload.data.habitId;
-            if (habitId) {
-                return loadState().then(() => {
-                    firedToday['habit_' + habitId] = getTodayKey();
-                    return saveState();
-                }).catch(() => {}); // never let dedup logic break notifications
-            }
         })
     );
 });
