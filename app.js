@@ -731,7 +731,12 @@
 
   notifToggle.addEventListener('change', async () => {
     if (notifToggle.checked) {
-      if ('Notification' in window) {
+      // In native app, skip web push — use native notifications
+      const isNativeApp = window._nativeNotifications && window._nativeNotifications.isNative;
+      if (isNativeApp) {
+        // Native app handles notifications via AlarmManager
+        console.log('[App] Native app: using native notifications');
+      } else if ('Notification' in window) {
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') {
           notifToggle.checked = false;
