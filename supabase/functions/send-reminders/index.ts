@@ -5,7 +5,7 @@
 //   VAPID_PUBLIC_KEY   (the public key)
 //   VAPID_SUBJECT      (mailto:your@email.com)
 //
-// Called every minute by pg_cron (or external cron)
+// Called every minute by cron-job.org
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
@@ -27,7 +27,7 @@ Deno.serve(async (_req) => {
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
 
-    // Get all due reminders (not completed, not already notified today)
+    // Get ALL reminders that haven't been notified today (or ever)
     const { data: reminders, error: remErr } = await supabase
       .from('habit_reminders')
       .select('*')
@@ -43,7 +43,7 @@ Deno.serve(async (_req) => {
     }
 
     if (!reminders || reminders.length === 0) {
-      return new Response(JSON.stringify({ message: 'No due reminders' }), {
+      return new Response(JSON.stringify({ message: 'No due reminders', now: now.toISOString(), today }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -51,17 +51,21 @@ Deno.serve(async (_req) => {
 
     let sentCount = 0;
     let errorCount = 0;
+    const debugLogs: string[] = [];
 
     for (const reminder of reminders) {
       const userId = reminder.user_id;
 
-      // Get the user's timezone offset from their push subscription
+      // Get the user's push subscriptions (and timezone)
       const { data: subs, error: subErr } = await supabase
         .from('push_subscriptions')
         .select('*')
         .eq('user_id', userId);
 
-      if (subErr || !subs || subs.length === 0) continue;
+      if (subErr || !subs || subs.length === 0) {
+        debugLogs.push(`User ${userId} | Habit: ${reminder.name} | No push subscriptions found, skipping.`);
+        continue;
+      }
 
       // Use the timezone from the first subscription (all same user = same timezone)
       const userTimezoneOffset = subs[0].timezone_offset ?? 330; // default IST (+5:30 = 330 min)
@@ -78,10 +82,19 @@ Deno.serve(async (_req) => {
       const [rH, rM] = reminder.reminder_time.split(':').map(Number);
       const reminderMinutes = rH * 60 + rM;
 
-      // Fire if we're within a 2-minute window (cron runs every minute)
-      if (userNowMinutes < reminderMinutes || userNowMinutes > reminderMinutes + 2) {
+      const logMsg = `User ${userId} | Habit: ${reminder.name} | TZ: +${userTimezoneOffset}min | Local Time: ${String(userHour).padStart(2,'0')}:${String(userMinute).padStart(2,'0')} | Target: ${String(rH).padStart(2,'0')}:${String(rM).padStart(2,'0')}`;
+      console.log(logMsg);
+      debugLogs.push(logMsg);
+
+      // IMPORTANT: Fire if we're AT or PAST the target time (within today).
+      // This ensures the notification fires even if cron is late.
+      // The `last_notified` field prevents duplicate notifications for the same day.
+      if (userNowMinutes < reminderMinutes) {
+        debugLogs.push(`  -> Skipped. Not yet time (${userNowMinutes} < ${reminderMinutes}).`);
         continue;
       }
+
+      debugLogs.push(`  -> Time matched! Sending push to ${subs.length} device(s)...`);
 
       // Build the notification payload
       const notificationPayload = JSON.stringify({
@@ -104,18 +117,23 @@ Deno.serve(async (_req) => {
         };
 
         try {
-          await webpush.sendNotification(pushSubscription, notificationPayload, {
+          const result = await webpush.sendNotification(pushSubscription, notificationPayload, {
             TTL: 86400,
           });
           sentCount++;
-          console.log(`Push sent to user ${userId} for habit "${reminder.name}"`);
+          const successMsg = `  ✓ Push sent to device ${sub.id} (status: ${result.statusCode})`;
+          console.log(successMsg);
+          debugLogs.push(successMsg);
         } catch (err: any) {
           errorCount++;
-          console.error(`Push failed for user ${userId}:`, err.statusCode, err.body);
+          const errMsg = `  ✗ Push FAILED for device ${sub.id}: ${err.statusCode} ${err.body || err.message}`;
+          console.error(errMsg);
+          debugLogs.push(errMsg);
 
           // Remove expired/invalid subscriptions (410 Gone, 404 Not Found)
           if (err.statusCode === 410 || err.statusCode === 404) {
-            console.log(`Removing expired subscription ${sub.id}`);
+            console.log(`  Removing expired subscription ${sub.id}`);
+            debugLogs.push(`  Removing expired subscription ${sub.id}`);
             await supabase
               .from('push_subscriptions')
               .delete()
@@ -124,17 +142,22 @@ Deno.serve(async (_req) => {
         }
       }
 
-      // Mark as notified today (even if some devices failed)
+      // Mark as notified today (prevents duplicate sends)
       await supabase
         .from('habit_reminders')
         .update({ last_notified: today })
         .eq('user_id', userId)
         .eq('id', reminder.id);
+      
+      debugLogs.push(`  ✓ Marked reminder "${reminder.name}" as notified for ${today}`);
     }
 
     return new Response(
       JSON.stringify({
         message: `Processed ${reminders.length} reminders, sent ${sentCount} notifications, ${errorCount} errors`,
+        serverTime: now.toISOString(),
+        today,
+        debugLogs,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );

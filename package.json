@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "supabase": "^2.98.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.1",
+    "pg": "^8.20.0",
+    "web-push": "^3.6.7"
+  }
+}
