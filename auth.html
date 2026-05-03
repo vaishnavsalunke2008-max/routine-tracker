@@ -299,7 +299,8 @@
     </script>
 
     <script>
-        if ('serviceWorker' in navigator) {
+        var isNativeApp = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+        if (!isNativeApp && 'serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js', { scope: './' })
                 .then(() => console.log('SW registered'))
                 .catch((e) => console.log('SW registration failed', e));

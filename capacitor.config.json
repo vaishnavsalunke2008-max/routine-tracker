@@ -2,14 +2,15 @@
   "appId": "com.routinetracker.app",
   "appName": "Routine Tracker",
   "webDir": "www",
+  "server": {
+    "url": "https://routine-tracker-ebon.vercel.app",
+    "cleartext": false
+  },
   "plugins": {
     "LocalNotifications": {
       "smallIcon": "ic_stat_icon",
       "iconColor": "#7c5cfc",
       "sound": "default"
     }
-  },
-  "android": {
-    "allowMixedContent": true
   }
 }
