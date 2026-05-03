@@ -802,9 +802,11 @@
 
     // If running as native app, use Capacitor local notifications (survives app kill)
     if (window._nativeNotifications && window._nativeNotifications.isNative) {
-      window._nativeNotifications.scheduleAllReminders(data.habits, log.completed).catch(e =>
-        console.warn('[App] Native notification scheduling failed:', e)
-      );
+      try {
+        window._nativeNotifications.scheduleAllReminders(data.habits, log.completed);
+      } catch (e) {
+        console.warn('[App] Native notification scheduling failed:', e);
+      }
     }
 
     // Send to local service worker (fallback for when app is open)
