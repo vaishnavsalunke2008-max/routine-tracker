@@ -1,6 +1,6 @@
 {
   "appId": "com.routinetracker.app",
-  "appName": "Routine Tracker",
+  "appName": "Routines",
   "webDir": "www",
   "server": {
     "url": "https://routine-tracker-ebon.vercel.app",

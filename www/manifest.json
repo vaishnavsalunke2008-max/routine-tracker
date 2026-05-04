@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "Routines",
+  "name": "Routine Tracker",
   "short_name": "Routines",
   "description": "Track daily habits, visualize life balance, and get 10-day evaluations.",
   "start_url": "./auth.html",
