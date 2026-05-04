@@ -47,10 +47,17 @@ async function supaSignIn(email, password, onRetry) {
 
 async function supaSignInWithGoogle(onRetry) {
     return retrySupabaseCall(async () => {
+        // Check if running inside the Android native wrapper
+        const isNative = typeof window !== 'undefined' && window.AndroidNotifications && typeof window.AndroidNotifications.isNative === 'function';
+        
+        const redirectUrl = isNative 
+            ? 'routinetracker://auth' // Deep link back to app
+            : window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'index.html'; // Web fallback
+
         const { data, error } = await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'index.html',
+                redirectTo: redirectUrl,
                 queryParams: {
                     prompt: 'select_account',  // Always show account chooser
                 },

@@ -66,12 +66,25 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
-                if (url.contains("routine-tracker-ebon.vercel.app") ||
-                    url.contains("supabase.co") ||
-                    url.contains("accounts.google.com") ||
-                    url.contains("googleapis.com")) {
+                
+                // 1. If it's our Vercel app, load in WebView
+                if (url.startsWith("https://routine-tracker-ebon.vercel.app") || url.equals("https://routine-tracker-ebon.vercel.app/")) {
                     return false;
                 }
+                
+                // 2. If it's a Supabase OAuth authorize request, open in external Chrome
+                if (url.contains("supabase.co") && url.contains("/auth/v1/authorize")) {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    startActivity(intent);
+                    return true;
+                }
+                
+                // 3. Other Supabase API requests load in WebView
+                if (url.contains("supabase.co")) {
+                    return false;
+                }
+                
+                // 4. Everything else (including accounts.google.com) opens in external browser
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
                 startActivity(intent);
                 return true;
@@ -91,7 +104,29 @@ public class MainActivity extends Activity {
             WebView.setWebContentsDebuggingEnabled(true);
         }
 
-        webView.loadUrl("https://routine-tracker-ebon.vercel.app/");
+        handleIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent);
+    }
+
+    private void handleIntent(Intent intent) {
+        Uri data = intent.getData();
+        if (data != null && "routinetracker".equals(data.getScheme())) {
+            // Reconstruct the URL for the WebView, transferring the session hash
+            String urlStr = data.toString().replace("routinetracker://auth", "https://routine-tracker-ebon.vercel.app/");
+            if (webView != null) {
+                webView.loadUrl(urlStr);
+            }
+        } else {
+            if (webView != null && webView.getUrl() == null) {
+                webView.loadUrl("https://routine-tracker-ebon.vercel.app/");
+            }
+        }
     }
 
     private void requestNotificationPermission() {
