@@ -186,3 +186,50 @@ async function supaResetRemindersForNewDay(userId) {
         .eq('user_id', userId);
 }
 
+// ─── Event Reminder Sync ───
+
+async function supaSyncEventReminders(userId, timedEvents) {
+    // timedEvents: [{id, text, time, yearly, dateStr}]
+    if (!timedEvents || timedEvents.length === 0) {
+        await supabaseClient
+            .from('event_reminders')
+            .delete()
+            .eq('user_id', userId);
+        return;
+    }
+
+    const rows = timedEvents.map(e => ({
+        id: e.id,
+        user_id: userId,
+        name: e.text,
+        event_date: e.dateStr,
+        event_time: e.time,
+        yearly: e.yearly || false,
+    }));
+
+    const { error } = await supabaseClient
+        .from('event_reminders')
+        .upsert(rows, { onConflict: 'user_id,id' });
+
+    if (error) {
+        console.error('[Supabase] Sync event reminders error:', error);
+        return;
+    }
+
+    const currentIds = timedEvents.map(e => e.id);
+    const { data: existing } = await supabaseClient
+        .from('event_reminders')
+        .select('id')
+        .eq('user_id', userId);
+        
+    if (existing) {
+        const toDelete = existing.map(r => r.id).filter(id => !currentIds.includes(id));
+        if (toDelete.length > 0) {
+            await supabaseClient
+                .from('event_reminders')
+                .delete()
+                .eq('user_id', userId)
+                .in('id', toDelete);
+        }
+    }
+}

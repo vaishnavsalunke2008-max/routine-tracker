@@ -1,6 +1,6 @@
 {
   "devDependencies": {
-    "supabase": "^2.98.0"
+    "supabase": "^2.98.1"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

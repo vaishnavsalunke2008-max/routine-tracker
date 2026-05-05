@@ -53,12 +53,31 @@
     console.log(`[NativeNotif] Processed ${timedHabits.length} reminders`);
   }
 
+  function scheduleEventReminders(events) {
+    if (typeof AndroidNotifications.scheduleEventNotification !== 'function') {
+      console.warn('[NativeNotif] scheduleEventNotification not supported by native bridge yet.');
+      return;
+    }
+    for (const ev of events) {
+      if (ev.time) {
+        try {
+          const [hours, minutes] = ev.time.split(':').map(Number);
+          const [year, month, day] = ev.dateStr.split('-').map(Number);
+          AndroidNotifications.scheduleEventNotification(ev.id, ev.text, year, month, day, hours, minutes, ev.yearly);
+        } catch (e) {
+          console.error('[NativeNotif] Schedule event error:', e);
+        }
+      }
+    }
+  }
+
   // Expose the API globally
   window._nativeNotifications = {
     isNative: true,
     scheduleReminder,
     cancelReminder,
     scheduleAllReminders,
+    scheduleEventReminders,
   };
 
   console.log('[NativeNotif] Native notification bridge ready');

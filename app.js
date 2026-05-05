@@ -307,7 +307,7 @@
     const CATS = getCategoryIds();
     const scores = {};
     CATS.forEach(cat => {
-      const habitsInCat = data.habits.filter(h => h.category === cat);
+      const habitsInCat = data.habits.filter(h => h.category === cat && h.isDaily !== false);
       if (habitsInCat.length === 0) { scores[cat] = 0; }
       else {
         const doneCount = habitsInCat.filter(h => log.completed.includes(h.id)).length;
@@ -453,7 +453,14 @@
   function autoResetIfNewDay() {
     const today = todayKey();
     if (!data.dailyLogs[today]) {
-      data.dailyLogs[today] = { completed: [] };
+      const pastDays = Object.keys(data.dailyLogs).sort().reverse();
+      let carriedOverCompleted = [];
+      if (pastDays.length > 0) {
+        const lastLog = data.dailyLogs[pastDays[0]];
+        const nonDailyHabitIds = data.habits.filter(h => h.isDaily === false).map(h => h.id);
+        carriedOverCompleted = lastLog.completed.filter(id => nonDailyHabitIds.includes(id));
+      }
+      data.dailyLogs[today] = { completed: carriedOverCompleted };
       saveData(data);
     }
   }
@@ -463,9 +470,10 @@
     const today = todayKey();
     autoResetIfNewDay();
     const log = data.dailyLogs[today] || { completed: [] };
-    const total = data.habits.length;
-    const done = data.habits.filter(h => log.completed.includes(h.id)).length;
-    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const dailyHabits = data.habits.filter(h => h.isDaily !== false);
+    const total = dailyHabits.length;
+    const done = dailyHabits.filter(h => log.completed.includes(h.id)).length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : (data.habits.length > 0 ? 100 : 0);
 
     scoreValue.textContent = pct + '%';
     completedCount.textContent = `${done}/${total}`;
@@ -474,7 +482,7 @@
 
     const LABELS = getCategoryLabels();
     habitList.innerHTML = '';
-    if (total === 0) {
+    if (data.habits.length === 0) {
       emptyState.classList.remove('hidden');
     } else {
       emptyState.classList.add('hidden');
@@ -485,10 +493,14 @@
         const reminderBadge = habit.timed
           ? `<span class="habit-reminder-badge"><svg viewBox="0 0 18 18" fill="none"><path d="M9 1.5a5.5 5.5 0 0 1 5.5 5.5c0 2.5 1 4 1 4H2.5s1-1.5 1-4A5.5 5.5 0 0 1 9 1.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>${habit.reminderTime || ''}</span>`
           : '';
+        const nonDailyBadge = habit.isDaily === false
+          ? `<span class="habit-reminder-badge" style="background:var(--bg-tertiary);color:var(--text-muted)"><svg viewBox="0 0 18 18" fill="none"><rect x="3" y="4" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M13 2v4M5 2v4M3 8h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Task</span>`
+          : '';
         li.innerHTML = `
           <input type="checkbox" class="habit-checkbox" data-id="${habit.id}" ${isChecked ? 'checked' : ''}>
           <span class="habit-name">${escapeHtml(habit.name)}</span>
           ${reminderBadge}
+          ${nonDailyBadge}
           <span class="category-badge" data-cat="${habit.category}">${LABELS[habit.category] || habit.category}</span>
           <button class="delete-btn" data-id="${habit.id}" title="Delete habit">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -506,17 +518,18 @@
 
   // ─── Streak ───
   function calcStreak() {
-    if (data.habits.length === 0) return 0;
+    const dailyHabits = data.habits.filter(h => h.isDaily !== false);
+    if (dailyHabits.length === 0) return 0;
     let streak = 0;
     const todayLog = data.dailyLogs[todayKey()] || { completed: [] };
-    const todayAllDone = data.habits.every(h => todayLog.completed.includes(h.id));
+    const todayAllDone = dailyHabits.every(h => todayLog.completed.includes(h.id));
     let d = new Date();
     if (!todayAllDone) d.setDate(d.getDate() - 1);
     for (let i = 0; i < 365; i++) {
       const key = d.toISOString().slice(0, 10);
       const log = data.dailyLogs[key];
       if (!log) break;
-      if (!data.habits.every(h => log.completed.includes(h.id))) break;
+      if (!dailyHabits.every(h => log.completed.includes(h.id))) break;
       streak++;
       d.setDate(d.getDate() - 1);
     }
@@ -593,6 +606,7 @@
       return;
     }
     const isTimed = reminderToggle.checked;
+    const isDaily = $('#dailyHabitToggle') ? $('#dailyHabitToggle').checked : true;
     // If timed, ensure notification permission and push subscription
     if (isTimed && 'Notification' in window && Notification.permission !== 'granted') {
       const perm = await Notification.requestPermission();
@@ -608,6 +622,7 @@
       category: categorySelect.value,
       timed: isTimed,
       reminderTime: isTimed ? habitReminderTime.value : null,
+      isDaily: isDaily,
     };
     data.habits.push(newHabit);
     autoResetIfNewDay();
@@ -616,6 +631,7 @@
     scheduleHabitReminders();
     habitInput.value = '';
     reminderToggle.checked = false;
+    if ($('#dailyHabitToggle')) $('#dailyHabitToggle').checked = true;
     reminderTimeRow.classList.remove('visible');
     habitInput.focus();
   });
@@ -1076,8 +1092,21 @@
   let calYear, calMonth, calSelectedDate = null;
 
   function loadEvents() {
-    try { return JSON.parse(localStorage.getItem(EVENTS_KEY)) || {}; }
-    catch { return {}; }
+    try {
+      const ev = JSON.parse(localStorage.getItem(EVENTS_KEY)) || {};
+      let migrated = false;
+      Object.keys(ev).forEach(dateStr => {
+        ev[dateStr] = ev[dateStr].map(item => {
+          if (typeof item === 'string') {
+            migrated = true;
+            return { id: generateId(), text: item, time: '', yearly: false };
+          }
+          return item;
+        });
+      });
+      if (migrated) saveEvents(ev);
+      return ev;
+    } catch { return {}; }
   }
   function saveEvents(ev) { localStorage.setItem(EVENTS_KEY, JSON.stringify(ev)); }
 
@@ -1115,7 +1144,21 @@
       btn.textContent = d;
       btn.dataset.date = dateStr;
       if (dateStr === today) btn.classList.add('today');
-      if (events[dateStr] && events[dateStr].length > 0) btn.classList.add('has-event');
+      
+      const mmdd = dateStr.slice(5);
+      let hasEvent = false;
+      if (events[dateStr] && events[dateStr].length > 0) hasEvent = true;
+      else {
+        for (const [key, evtList] of Object.entries(events)) {
+          if (key.slice(5) === mmdd && key < dateStr) {
+            if (evtList.some(e => e.yearly)) {
+              hasEvent = true;
+              break;
+            }
+          }
+        }
+      }
+      if (hasEvent) btn.classList.add('has-event');
       if (calSelectedDate === dateStr) btn.classList.add('selected');
       btn.addEventListener('click', () => selectCalDay(dateStr, d));
       calGrid.appendChild(btn);
@@ -1139,6 +1182,8 @@
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     eventDateLabel.textContent = `${months[calMonth]} ${day}, ${calYear}`;
     eventInput.value = '';
+    if ($('#eventTimeInput')) $('#eventTimeInput').value = '';
+    if ($('#eventYearlyToggle')) $('#eventYearlyToggle').checked = false;
     eventInputArea.style.display = 'block';
     eventInput.focus();
     renderCalendar();
@@ -1148,14 +1193,27 @@
     const events = loadEvents();
     const monthEvents = [];
     Object.keys(events).forEach(dateStr => {
-      const [y, m] = dateStr.split('-').map(Number);
+      const [y, m, d] = dateStr.split('-').map(Number);
       if (y === calYear && m === calMonth + 1) {
-        events[dateStr].forEach((text, idx) => {
-          monthEvents.push({ dateStr, text, idx, day: parseInt(dateStr.split('-')[2]) });
+        events[dateStr].forEach((evObj, idx) => {
+          monthEvents.push({ dateStr, evObj, idx, day: d, isRecurrence: false });
+        });
+      } else if (y < calYear && m === calMonth + 1) {
+        events[dateStr].forEach((evObj, idx) => {
+          if (evObj.yearly) {
+            monthEvents.push({ dateStr, evObj, idx, day: d, isRecurrence: true });
+          }
         });
       }
     });
-    monthEvents.sort((a, b) => a.day - b.day);
+
+    monthEvents.sort((a, b) => {
+      if (a.day !== b.day) return a.day - b.day;
+      if (a.evObj.time && !b.evObj.time) return -1;
+      if (!a.evObj.time && b.evObj.time) return 1;
+      if (a.evObj.time && b.evObj.time) return a.evObj.time.localeCompare(b.evObj.time);
+      return 0;
+    });
 
     eventsList.innerHTML = '';
     if (monthEvents.length === 0) {
@@ -1165,9 +1223,14 @@
     monthEvents.forEach(ev => {
       const card = document.createElement('div');
       card.className = 'event-card';
+      const timeBadge = ev.evObj.time ? `<span class="habit-reminder-badge" style="margin-right:6px;"><svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="currentColor" stroke-width="1.5"/><path d="M9 4.5V9l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>${ev.evObj.time}</span>` : '';
+      const yearlyBadge = ev.evObj.yearly ? `<span class="habit-reminder-badge" style="margin-right:6px;background:var(--bg-tertiary);color:var(--text-muted)"><svg viewBox="0 0 16 16" fill="none"><path d="M12 4.5v-3m0 3h3m-3 0A5.5 5.5 0 004 8m-1.5 3.5v3m0-3h-3m3 0A5.5 5.5 0 0012 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Yearly</span>` : '';
       card.innerHTML = `
         <span class="event-card-date">${ev.day}</span>
-        <span class="event-card-text">${escapeHtml(ev.text)}</span>
+        <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+          <span class="event-card-text">${escapeHtml(ev.evObj.text)}</span>
+          <div style="display:flex;">${timeBadge}${yearlyBadge}</div>
+        </div>
         <button class="event-delete-btn" data-date="${ev.dateStr}" data-idx="${ev.idx}">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
@@ -1184,6 +1247,7 @@
       if (events[d]) { events[d].splice(i, 1); if (events[d].length === 0) delete events[d]; }
       saveEvents(events);
       renderCalendar();
+      if (typeof scheduleEventReminders === 'function') scheduleEventReminders();
     });
   }
 
@@ -1199,19 +1263,70 @@
     renderCalendar();
   });
 
-  eventSaveBtn.addEventListener('click', () => {
+  eventSaveBtn.addEventListener('click', async () => {
     if (!calSelectedDate) return;
     const text = eventInput.value.trim();
     if (!text) return;
+    const time = $('#eventTimeInput') ? $('#eventTimeInput').value : '';
+    const yearly = $('#eventYearlyToggle') ? $('#eventYearlyToggle').checked : false;
+
+    if (time && 'Notification' in window && Notification.permission !== 'granted') {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        subscribeToPush();
+      } else {
+        alert('Notification permission denied. The event reminder was saved but notifications won\'t fire until you allow them.');
+      }
+    }
+
     const events = loadEvents();
     if (!events[calSelectedDate]) events[calSelectedDate] = [];
-    events[calSelectedDate].push(text);
+    events[calSelectedDate].push({ id: generateId(), text, time, yearly });
     saveEvents(events);
     eventInput.value = '';
+    if ($('#eventTimeInput')) $('#eventTimeInput').value = '';
+    if ($('#eventYearlyToggle')) $('#eventYearlyToggle').checked = false;
     eventInputArea.style.display = 'none';
     calSelectedDate = null;
     renderCalendar();
+    if (typeof scheduleEventReminders === 'function') scheduleEventReminders();
   });
+
+  const originalEventCloseBtnHandler = () => {
+    eventInputArea.style.display = 'none';
+    calSelectedDate = null;
+    eventInput.value = '';
+    if ($('#eventTimeInput')) $('#eventTimeInput').value = '';
+    if ($('#eventYearlyToggle')) $('#eventYearlyToggle').checked = false;
+    renderCalendar();
+  };
+  eventCloseBtn.replaceWith(eventCloseBtn.cloneNode(true));
+  $('#eventCloseBtn').addEventListener('click', originalEventCloseBtnHandler);
+
+  function scheduleEventReminders() {
+    const events = loadEvents();
+    const allReminders = [];
+    Object.keys(events).forEach(dateStr => {
+      events[dateStr].forEach(ev => {
+        if (ev.time) {
+          allReminders.push({ ...ev, dateStr });
+        }
+      });
+    });
+    
+    if (window._nativeNotifications && window._nativeNotifications.isNative && window._nativeNotifications.scheduleEventReminders) {
+      window._nativeNotifications.scheduleEventReminders(allReminders);
+    }
+    
+    sendToSW({ type: 'UPDATE_EVENT_REMINDERS', events: allReminders });
+    
+    if (currentUserId && window.supaSyncEventReminders) {
+      window.supaSyncEventReminders(currentUserId, allReminders).catch(e => console.warn('[App] Supabase event sync failed:', e));
+    }
+  }
+
+  // schedule Event reminders on load
+  scheduleEventReminders();
 
   eventCloseBtn.addEventListener('click', () => {
     eventInputArea.style.display = 'none';

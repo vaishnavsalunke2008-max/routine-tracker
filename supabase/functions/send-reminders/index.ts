@@ -152,6 +152,85 @@ Deno.serve(async (_req) => {
       debugLogs.push(`  ✓ Marked reminder "${reminder.name}" as notified for ${today}`);
     }
 
+    // ============================================
+    // Process Event Reminders
+    // ============================================
+    const { data: eventRems, error: evErr } = await supabase
+      .from('event_reminders')
+      .select('*')
+      .not('event_time', 'is', null)
+      .or(`last_notified.is.null,last_notified.neq.${today}`);
+
+    if (evErr) {
+      console.error('Error fetching event reminders:', evErr);
+      debugLogs.push(`Error fetching event reminders: ${evErr.message}`);
+    } else if (eventRems) {
+      const todayMMDD = today.slice(5); // "MM-DD"
+      const dueEvents = eventRems.filter((e: any) => {
+        if (!e.yearly) return e.event_date === today;
+        return e.event_date.slice(5) === todayMMDD && e.event_date <= today;
+      });
+
+      for (const ev of dueEvents) {
+        const userId = ev.user_id;
+
+        const { data: subs, error: subErr } = await supabase
+          .from('push_subscriptions')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (subErr || !subs || subs.length === 0) continue;
+
+        const userTimezoneOffset = subs[0].timezone_offset ?? 330;
+        const userLocalMs = now.getTime() + userTimezoneOffset * 60 * 1000;
+        const userLocalDate = new Date(userLocalMs);
+        const userHour = userLocalDate.getUTCHours();
+        const userMinute = userLocalDate.getUTCMinutes();
+        const userNowMinutes = userHour * 60 + userMinute;
+
+        const [rH, rM] = ev.event_time.split(':').map(Number);
+        const reminderMinutes = rH * 60 + rM;
+
+        if (userNowMinutes < reminderMinutes) continue; // Not yet time
+
+        debugLogs.push(`Event Time matched! Sending push for "${ev.name}" to ${subs.length} device(s)...`);
+
+        const notificationPayload = JSON.stringify({
+          title: "Event Reminder",
+          body: `📅 ${ev.name}`,
+          icon: '/icons/icon-192.png',
+          badge: '/icons/icon-192.png',
+          tag: `event-${ev.id}-${today}`,
+          data: { eventId: ev.id, type: 'event' },
+        });
+
+        for (const sub of subs) {
+          const pushSubscription = {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          };
+
+          try {
+            await webpush.sendNotification(pushSubscription, notificationPayload, { TTL: 86400 });
+            sentCount++;
+            debugLogs.push(`  ✓ Event push sent to device ${sub.id}`);
+          } catch (err: any) {
+            errorCount++;
+            debugLogs.push(`  ✗ Event push FAILED for device ${sub.id}: ${err.message}`);
+            if (err.statusCode === 410 || err.statusCode === 404) {
+              await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+            }
+          }
+        }
+
+        await supabase
+          .from('event_reminders')
+          .update({ last_notified: today })
+          .eq('user_id', userId)
+          .eq('id', ev.id);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         message: `Processed ${reminders.length} reminders, sent ${sentCount} notifications, ${errorCount} errors`,
