@@ -189,6 +189,8 @@ public class MainActivity extends Activity {
                 Intent intent = new Intent(context, NotificationReceiver.class);
                 intent.putExtra("habitId", habitId);
                 intent.putExtra("habitName", habitName);
+                intent.putExtra("hour", hour);
+                intent.putExtra("minute", minute);
 
                 int requestCode = Math.abs(habitId.hashCode());
                 PendingIntent pendingIntent = PendingIntent.getBroadcast(
@@ -245,6 +247,44 @@ public class MainActivity extends Activity {
                 Log.d(TAG, "Cancelled alarm for: " + habitId);
             } catch (Exception e) {
                 Log.e(TAG, "cancelNotification error: " + e.getMessage(), e);
+            }
+        }
+
+        @JavascriptInterface
+        public void skipNotificationToday(String habitId, String habitName, int hour, int minute) {
+            Log.d(TAG, ">>> skipNotificationToday: " + habitName);
+            try {
+                AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+                if (alarmManager == null) return;
+                
+                Intent intent = new Intent(context, NotificationReceiver.class);
+                intent.putExtra("habitId", habitId);
+                intent.putExtra("habitName", habitName);
+                intent.putExtra("hour", hour);
+                intent.putExtra("minute", minute);
+
+                int requestCode = Math.abs(habitId.hashCode());
+                PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                    context, requestCode, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+
+                java.util.Calendar calendar = java.util.Calendar.getInstance();
+                calendar.set(java.util.Calendar.HOUR_OF_DAY, hour);
+                calendar.set(java.util.Calendar.MINUTE, minute);
+                calendar.set(java.util.Calendar.SECOND, 0);
+                calendar.set(java.util.Calendar.MILLISECOND, 0);
+
+                // Add 1 day to skip today
+                calendar.add(java.util.Calendar.DAY_OF_YEAR, 1);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+                } else {
+                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "skipNotificationToday error: " + e.getMessage(), e);
             }
         }
     }

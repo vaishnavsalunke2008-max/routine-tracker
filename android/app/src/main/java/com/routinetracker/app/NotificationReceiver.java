@@ -39,5 +39,42 @@ public class NotificationReceiver extends BroadcastReceiver {
             int notifId = habitId != null ? (habitId.hashCode() & 0x7fffffff) : 1;
             manager.notify(notifId, builder.build());
         }
+
+        // Reschedule for the next occurrence
+        int hour = intent.getIntExtra("hour", -1);
+        int minute = intent.getIntExtra("minute", -1);
+        if (hour != -1 && minute != -1 && habitId != null) {
+            try {
+                android.app.AlarmManager alarmManager = (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+                if (alarmManager != null) {
+                    Intent nextIntent = new Intent(context, NotificationReceiver.class);
+                    nextIntent.putExtra("habitId", habitId);
+                    nextIntent.putExtra("habitName", habitName);
+                    nextIntent.putExtra("hour", hour);
+                    nextIntent.putExtra("minute", minute);
+                    
+                    int requestCode = Math.abs(habitId.hashCode());
+                    PendingIntent nextPendingIntent = PendingIntent.getBroadcast(
+                        context, requestCode, nextIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                    );
+                    
+                    java.util.Calendar calendar = java.util.Calendar.getInstance();
+                    calendar.set(java.util.Calendar.HOUR_OF_DAY, hour);
+                    calendar.set(java.util.Calendar.MINUTE, minute);
+                    calendar.set(java.util.Calendar.SECOND, 0);
+                    calendar.set(java.util.Calendar.MILLISECOND, 0);
+                    calendar.add(java.util.Calendar.DAY_OF_YEAR, 1);
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), nextPendingIntent);
+                    } else {
+                        alarmManager.setExact(android.app.AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), nextPendingIntent);
+                    }
+                }
+            } catch (Exception e) {
+                // ignore
+            }
+        }
     }
 }

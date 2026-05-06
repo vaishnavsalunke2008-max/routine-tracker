@@ -171,9 +171,11 @@ async function supaSyncReminders(userId, timedHabits) {
 }
 
 async function supaMarkReminderCompleted(userId, habitId) {
+    const tzOffset = new Date().getTimezoneOffset(); // e.g., -330
+    const localDate = new Date(Date.now() - tzOffset * 60 * 1000).toISOString().slice(0, 10);
     await supabaseClient
         .from('habit_reminders')
-        .update({ completed: true })
+        .update({ completed: true, last_notified: localDate })
         .eq('user_id', userId)
         .eq('id', habitId);
 }

@@ -47,7 +47,17 @@
       if (!isCompleted) {
         scheduleReminder(habit.id, habit.name, habit.reminderTime);
       } else {
-        cancelReminder(habit.id);
+        if (typeof AndroidNotifications.skipNotificationToday === 'function') {
+          try {
+            const [hours, minutes] = habit.reminderTime.split(':').map(Number);
+            AndroidNotifications.skipNotificationToday(habit.id, habit.name, hours, minutes);
+            console.log(`[NativeNotif] Skipped today for ${habit.id}, scheduled for tomorrow.`);
+          } catch (e) {
+            cancelReminder(habit.id);
+          }
+        } else {
+          cancelReminder(habit.id);
+        }
       }
     }
     console.log(`[NativeNotif] Processed ${timedHabits.length} reminders`);
