@@ -186,3 +186,53 @@ async function supaResetRemindersForNewDay(userId) {
         .eq('user_id', userId);
 }
 
+// ─── Full Data Backup Sync ───
+
+async function supaSyncAllHabits(userId, allHabits) {
+    if (!allHabits || allHabits.length === 0) {
+        // Delete all synced habits for this user
+        await supabaseClient
+            .from('user_habits')
+            .delete()
+            .eq('user_id', userId);
+        return;
+    }
+
+    // Upsert all habits
+    const rows = allHabits.map(h => ({
+        id: h.id,
+        user_id: userId,
+        name: h.name,
+        category: h.category,
+        timed: h.timed || false,
+        reminder_time: h.reminderTime || null,
+        is_daily: h.isDaily !== false,
+    }));
+
+    const { error } = await supabaseClient
+        .from('user_habits')
+        .upsert(rows, { onConflict: 'user_id,id' });
+
+    if (error) {
+        console.error('[Supabase] Sync all habits error:', error);
+        return;
+    }
+
+    // Delete habits that no longer exist locally
+    const currentIds = allHabits.map(h => h.id);
+    const { data: existing } = await supabaseClient
+        .from('user_habits')
+        .select('id')
+        .eq('user_id', userId);
+        
+    if (existing) {
+        const toDelete = existing.map(r => r.id).filter(id => !currentIds.includes(id));
+        if (toDelete.length > 0) {
+            await supabaseClient
+                .from('user_habits')
+                .delete()
+                .eq('user_id', userId)
+                .in('id', toDelete);
+        }
+    }
+}

@@ -192,7 +192,12 @@
     };
   }
 
-  function saveData(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+  function saveData(d) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+    if (typeof currentUserId !== 'undefined' && currentUserId && typeof supaSyncAllHabits === 'function') {
+      supaSyncAllHabits(currentUserId, d.habits).catch(e => console.warn('[App] Supabase full sync failed:', e));
+    }
+  }
 
   let data = loadData();
 

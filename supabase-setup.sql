@@ -26,9 +26,23 @@ CREATE TABLE IF NOT EXISTS habit_reminders (
   PRIMARY KEY (user_id, id)
 );
 
+-- 2.5 Table: user_habits (Full Backup Sync)
+CREATE TABLE IF NOT EXISTS user_habits (
+  id TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  category TEXT,
+  timed BOOLEAN DEFAULT false,
+  reminder_time TEXT,
+  is_daily BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (user_id, id)
+);
+
 -- 3. RLS policies
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE habit_reminders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_habits ENABLE ROW LEVEL SECURITY;
 
 -- Push subscriptions: users can manage their own
 CREATE POLICY "Users manage own push subscriptions"
@@ -42,12 +56,20 @@ CREATE POLICY "Users manage own reminders"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+-- User habits: users can manage their own
+CREATE POLICY "Users manage own habits"
+  ON user_habits FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
 -- 4. Grant access to service role for Edge Functions
 -- (service_role bypasses RLS by default, so this is just for safety)
 GRANT ALL ON push_subscriptions TO service_role;
 GRANT ALL ON habit_reminders TO service_role;
+GRANT ALL ON user_habits TO service_role;
 GRANT ALL ON push_subscriptions TO authenticated;
 GRANT ALL ON habit_reminders TO authenticated;
+GRANT ALL ON user_habits TO authenticated;
 
 -- ============================================
 -- MIGRATION: If tables already exist, add timezone_offset column
