@@ -1307,10 +1307,14 @@ body.dark-theme .toggle-thumb {
 
 .habit-name {
   flex: 1;
+  min-width: 0;
   font-size: 0.88rem;
   font-weight: 500;
   color: var(--text-primary);
-  transition: color var(--transition)
+  transition: color var(--transition);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap
 }
 
 .delete-btn {
