@@ -1244,14 +1244,14 @@ body.dark-theme .toggle-thumb {
 
 .habit-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   transition: transform var(--transition), border-color var(--transition), background var(--transition);
-  animation: slideIn 0.3s cubic-bezier(.4, 0, .2, 1)
+  animation: slideIn 0.3s cubic-bezier(.4, 0, .2,1)
 }
 
 .habit-item:hover {
@@ -1312,9 +1312,8 @@ body.dark-theme .toggle-thumb {
   font-weight: 500;
   color: var(--text-primary);
   transition: color var(--transition);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap
+  word-break: break-word;
+  padding-top: 2px
 }
 
 .delete-btn {
