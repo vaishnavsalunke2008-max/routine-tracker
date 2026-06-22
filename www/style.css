@@ -2244,4 +2244,116 @@ body.dark-theme .toggle-thumb {
   color: var(--red);
   padding: 4px 2px 0;
   animation: fadeIn 0.18s ease
+}
+
+/* ─── Custom Confirm Modal ─── */
+.confirm-modal-card {
+  text-align: center;
+  max-width: 320px
+}
+
+.confirm-modal-icon {
+  font-size: 2.4rem;
+  margin-bottom: 10px
+}
+
+.confirm-modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em
+}
+
+.confirm-modal-msg {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 22px
+}
+
+.confirm-modal-btns {
+  display: flex;
+  gap: 10px
+}
+
+.confirm-modal-cancel {
+  flex: 1;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition)
+}
+
+.confirm-modal-cancel:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent)
+}
+
+.confirm-modal-ok {
+  flex: 1;
+  padding: 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition)
+}
+
+.confirm-modal-ok.danger {
+  background: var(--red)
+}
+
+.confirm-modal-ok:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(34,197,94,0.3)
+}
+
+.confirm-modal-ok.danger:hover {
+  box-shadow: 0 4px 16px rgba(231,76,94,0.3)
+}
+
+.confirm-modal-ok:active {
+  transform: scale(0.97)
+}
+
+/* ─── Toast ─── */
+.app-toast {
+  position: fixed;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 10px 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(.4,0,.2,1)
+}
+
+.app-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0)
+}
+
+.app-toast.error {
+  border-color: var(--red);
+  color: var(--red)
 }

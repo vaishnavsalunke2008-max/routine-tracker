@@ -474,6 +474,22 @@
     </div>
   </div>
 
+  <!-- Custom Confirm Modal -->
+  <div class="modal-overlay" id="confirmModalOverlay">
+    <div class="modal-card confirm-modal-card" id="confirmModalCard">
+      <div class="confirm-modal-icon" id="confirmModalIcon">⚠️</div>
+      <h3 class="confirm-modal-title" id="confirmModalTitle">Are you sure?</h3>
+      <p class="confirm-modal-msg" id="confirmModalMsg"></p>
+      <div class="confirm-modal-btns">
+        <button class="confirm-modal-cancel" id="confirmModalCancel">Cancel</button>
+        <button class="confirm-modal-ok" id="confirmModalOk">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="app-toast" id="appToast"></div>
+
   <script src="supabase.js"></script>
   <script src="native-notifications.js"></script>
   <script src="app.js?v=8"></script>

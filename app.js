@@ -997,70 +997,145 @@
   });
 
   // ═══════════════════════════════════════
+  // ═══════════════════════════════════════
   // ─── Settings: Data Backup ───
   // ═══════════════════════════════════════
-  exportDataBtn.addEventListener('click', () => {
+
+  // ── Custom Confirm Modal ──
+  const confirmModalOverlay = $('#confirmModalOverlay');
+  const confirmModalTitle = $('#confirmModalTitle');
+  const confirmModalMsg = $('#confirmModalMsg');
+  const confirmModalIcon = $('#confirmModalIcon');
+  const confirmModalOk = $('#confirmModalOk');
+  const confirmModalCancel = $('#confirmModalCancel');
+  let _confirmResolve = null;
+
+  function showConfirm({ icon = '⚠️', title = 'Are you sure?', message = '', okLabel = 'Confirm', okDanger = true }) {
+    return new Promise((resolve) => {
+      _confirmResolve = resolve;
+      confirmModalIcon.textContent = icon;
+      confirmModalTitle.textContent = title;
+      confirmModalMsg.textContent = message;
+      confirmModalOk.textContent = okLabel;
+      confirmModalOk.className = 'confirm-modal-ok' + (okDanger ? ' danger' : '');
+      confirmModalOverlay.classList.add('visible');
+    });
+  }
+
+  function closeConfirmModal(result) {
+    confirmModalOverlay.classList.remove('visible');
+    if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+  }
+
+  confirmModalOk.addEventListener('click', () => closeConfirmModal(true));
+  confirmModalCancel.addEventListener('click', () => closeConfirmModal(false));
+  confirmModalOverlay.addEventListener('click', (e) => { if (e.target === confirmModalOverlay) closeConfirmModal(false); });
+
+  // ── Toast ──
+  const appToast = $('#appToast');
+  let _toastTimer = null;
+  function showToast(msg, type = 'success') {
+    appToast.textContent = msg;
+    appToast.className = 'app-toast visible ' + type;
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { appToast.classList.remove('visible'); }, 3000);
+  }
+
+  // ── Export ──
+  exportDataBtn.addEventListener('click', async () => {
     const exportObj = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key.startsWith('routine_tracker_')) {
-        exportObj[key] = localStorage.getItem(key);
+      if (key.startsWith('routine_tracker_')) exportObj[key] = localStorage.getItem(key);
+    }
+    const json = JSON.stringify(exportObj, null, 2);
+    const fileName = `routine-tracker-backup-${todayKey()}.json`;
+    const blob = new Blob([json], { type: 'application/json' });
+
+    // Try Web Share API first (works great on Android)
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'application/json' })] })) {
+      try {
+        await navigator.share({
+          files: [new File([blob], fileName, { type: 'application/json' })],
+          title: 'Routine Tracker Backup',
+        });
+        showToast('✅ Backup shared successfully!');
+        return;
+      } catch (e) {
+        if (e.name !== 'AbortError') console.warn('[Export] Share failed:', e);
       }
     }
-    const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `routine-tracker-backup-${todayKey()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+
+    // Fallback: blob download (works on desktop/browser)
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('✅ Backup downloaded!');
+    } catch (e) {
+      showToast('❌ Export failed. Try on a browser.', 'error');
+    }
   });
 
+  // ── Import ──
   importDataBtn.addEventListener('click', () => {
     importFileInput.click();
   });
 
-  importFileInput.addEventListener('change', (e) => {
+  importFileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const imported = JSON.parse(ev.target.result);
         if (typeof imported !== 'object' || imported === null) {
-          alert('Invalid backup file.');
-          return;
+          showToast('❌ Invalid backup file.', 'error'); return;
         }
-        // Validate it has routine_tracker keys
         const keys = Object.keys(imported);
         const validKeys = keys.filter(k => k.startsWith('routine_tracker_'));
         if (validKeys.length === 0) {
-          alert('No valid routine tracker data found in file.');
-          return;
+          showToast('❌ No valid data found in file.', 'error'); return;
         }
-        if (!confirm(`Import ${validKeys.length} data entries? This will overwrite current data.`)) return;
-        // Clear existing routine tracker data
+        const confirmed = await showConfirm({
+          icon: '📥',
+          title: 'Import Backup?',
+          message: `This will restore ${validKeys.length} data entries and overwrite your current data.`,
+          okLabel: 'Import',
+          okDanger: false,
+        });
+        if (!confirmed) return;
         const toRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
           if (k.startsWith('routine_tracker_')) toRemove.push(k);
         }
         toRemove.forEach(k => localStorage.removeItem(k));
-        // Import
         validKeys.forEach(k => localStorage.setItem(k, imported[k]));
         location.reload();
       } catch {
-        alert('Failed to parse backup file. Please check the file format.');
+        showToast('❌ Failed to parse file. Check format.', 'error');
       }
     };
     reader.readAsText(file);
     importFileInput.value = '';
   });
 
-  resetAllBtn.addEventListener('click', () => {
-    if (!confirm('⚠️ Reset ALL data?\n\nThis will permanently delete all your habits, history, events, ideas, and settings. This cannot be undone.')) return;
+  // ── Reset All ──
+  resetAllBtn.addEventListener('click', async () => {
+    const confirmed = await showConfirm({
+      icon: '⚠️',
+      title: 'Reset All Data?',
+      message: 'This will permanently delete all your habits, history, events, ideas, and settings. This cannot be undone.',
+      okLabel: 'Reset Everything',
+      okDanger: true,
+    });
+    if (!confirmed) return;
     const toRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
